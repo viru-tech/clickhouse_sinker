@@ -20,8 +20,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/thanos-io/thanos/pkg/errors"
+	"github.com/confluentinc/confluent-kafka-go/schemaregistry"
+	"github.com/confluentinc/confluent-kafka-go/schemaregistry/serde"
 	"github.com/viru-tech/clickhouse_sinker/model"
+	"github.com/thanos-io/thanos/pkg/errors"
 )
 
 var (
@@ -71,17 +73,28 @@ type Parser interface {
 
 // Pool may be used for pooling Parsers for similarly typed JSONs.
 type Pool struct {
-	name         string
-	csvFormat    map[string]int
-	delimiter    string
-	timeZone     *time.Location
-	timeUnit     float64
-	knownLayouts sync.Map
-	pool         sync.Pool
+	name           string
+	topic          string
+	csvFormat      map[string]int
+	delimiter      string
+	timeZone       *time.Location
+	timeUnit       float64
+	knownLayouts   sync.Map
+	pool           sync.Pool
+	schemaRegistry schemaregistry.Client
+	deserializer   *serde.BaseDeserializer
 }
 
 // NewParserPool creates a parser pool
-func NewParserPool(name string, csvFormat []string, delimiter string, timezone string, timeunit float64) (pp *Pool, err error) {
+func NewParserPool(
+	name string,
+	csvFormat []string,
+	delimiter string,
+	timezone string,
+	timeunit float64,
+	topic string,
+	schemaRegistry schemaregistry.Client,
+) (pp *Pool, err error) {
 	var tz *time.Location
 	if timezone == "" {
 		tz = time.Local
@@ -89,11 +102,21 @@ func NewParserPool(name string, csvFormat []string, delimiter string, timezone s
 		err = errors.Wrapf(err, "")
 		return
 	}
+
+	deserializer := &serde.BaseDeserializer{}
+	if err = deserializer.ConfigureDeserializer(schemaRegistry, serde.ValueSerde, serde.NewDeserializerConfig()); err != nil {
+		err = errors.Wrapf(err, "")
+		return
+	}
+
 	pp = &Pool{
-		name:      name,
-		delimiter: delimiter,
-		timeZone:  tz,
-		timeUnit:  timeunit,
+		name:           name,
+		topic:          topic,
+		delimiter:      delimiter,
+		timeZone:       tz,
+		timeUnit:       timeunit,
+		schemaRegistry: schemaRegistry,
+		deserializer:   deserializer,
 	}
 	if csvFormat != nil {
 		pp.csvFormat = make(map[string]int)
@@ -117,6 +140,16 @@ func (pp *Pool) Get() Parser {
 			return &FastjsonParser{pp: pp}
 		case "csv":
 			return &CsvParser{pp: pp}
+		case "proto":
+			deserializer := &ProtoDeserializer{
+				srClient:         pp.schemaRegistry,
+				baseDeserializer: pp.deserializer,
+				topic:            pp.topic,
+			}
+			return &ProtoParser{
+				pp:           pp,
+				deserializer: deserializer,
+			}
 		default:
 			return &FastjsonParser{pp: pp}
 		}

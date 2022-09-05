@@ -182,13 +182,13 @@ func initMetrics() {
 	for _, name := range names {
 		switch name {
 		case "csv":
-			pp, _ = NewParserPool("csv", csvSchema, ",", "", timeUnit)
+			pp, _ = NewParserPool("csv", csvSchema, ",", "", timeUnit, "", nil)
 			sample = csvSample
 		case "fastjson":
-			pp, _ = NewParserPool("fastjson", nil, "", "", timeUnit)
+			pp, _ = NewParserPool("fastjson", nil, "", "", timeUnit, "", nil)
 			sample = jsonSample
 		case "gjson":
-			pp, _ = NewParserPool("gjson", nil, "", "", timeUnit)
+			pp, _ = NewParserPool("gjson", nil, "", "", timeUnit, "", nil)
 			sample = jsonSample
 		}
 		parser = pp.Get()
@@ -682,7 +682,7 @@ func TestParseInt(t *testing.T) {
 }
 
 func TestFastjsonDetectSchema(t *testing.T) {
-	pp, _ := NewParserPool("fastjson", nil, "", "", timeUnit)
+	pp, _ := NewParserPool("fastjson", nil, "", "", timeUnit, "", nil)
 	parser := pp.Get()
 	defer pp.Put(parser)
 	metric, _ := parser.Parse(jsonSample)
@@ -706,7 +706,7 @@ func TestFastjsonDetectSchema(t *testing.T) {
 }
 
 func TestGjsonDetectSchema(t *testing.T) {
-	pp, _ := NewParserPool("gjson", nil, "", "", timeUnit)
+	pp, _ := NewParserPool("gjson", nil, "", "", timeUnit, "", nil)
 	parser := pp.Get()
 	defer pp.Put(parser)
 	metric, _ := parser.Parse(jsonSample)

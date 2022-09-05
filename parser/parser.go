@@ -103,12 +103,6 @@ func NewParserPool(
 		return
 	}
 
-	deserializer := &serde.BaseDeserializer{}
-	if err = deserializer.ConfigureDeserializer(schemaRegistry, serde.ValueSerde, serde.NewDeserializerConfig()); err != nil {
-		err = errors.Wrapf(err, "")
-		return
-	}
-
 	pp = &Pool{
 		name:           name,
 		topic:          topic,
@@ -116,8 +110,16 @@ func NewParserPool(
 		timeZone:       tz,
 		timeUnit:       timeunit,
 		schemaRegistry: schemaRegistry,
-		deserializer:   deserializer,
 	}
+
+	if schemaRegistry != nil {
+		pp.deserializer = &serde.BaseDeserializer{}
+		if err = pp.deserializer.ConfigureDeserializer(schemaRegistry, serde.ValueSerde, serde.NewDeserializerConfig()); err != nil {
+			err = errors.Wrapf(err, "")
+			return
+		}
+	}
+
 	if csvFormat != nil {
 		pp.csvFormat = make(map[string]int)
 		for i, title := range csvFormat {
@@ -142,7 +144,7 @@ func (pp *Pool) Get() Parser {
 			return &CsvParser{pp: pp}
 		case "proto":
 			deserializer := &ProtoDeserializer{
-				srClient:         pp.schemaRegistry,
+				schemaRegsitry:   pp.schemaRegistry,
 				baseDeserializer: pp.deserializer,
 				topic:            pp.topic,
 			}

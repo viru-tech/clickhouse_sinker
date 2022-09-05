@@ -12,7 +12,7 @@
     "retryTimes": 0
   },
   "kafka": {
-    "brokers": "127.0.0.1:9094",
+    "brokers": "127.0.0.1:9092",
     "version": "2.2.0"
   },
   "schemaRegistry": {

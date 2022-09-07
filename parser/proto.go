@@ -23,6 +23,8 @@ import (
 	"time"
 )
 
+//go:generate mockgen -source=../vendor/github.com/confluentinc/confluent-kafka-go/schemaregistry/schemaregistry_client.go -imports=schemaregistry=github.com/confluentinc/confluent-kafka-go/schemaregistry -package=parser -mock_names=Client=MockSchemaRegistryClient -destination=schema_registry_mock_test.go
+
 // ProtoParser knows how to get data from proto format.
 type ProtoParser struct {
 	pp           *Pool
@@ -119,13 +121,28 @@ func (m *ProtoMetric) GetDateTime(key string, nullable bool) (val interface{}) {
 		return getDefaultDateTime(nullable)
 	}
 
-	return getDateTime(reflect.ValueOf(value), nullable)
+	rv := reflect.ValueOf(value)
+	if ts, ok := rv.Interface().(*timestamppb.Timestamp); ok {
+		return ts.AsTime()
+	}
+	if rv.Kind() == reflect.String {
+		var err error
+		if val, err = m.pp.ParseDateTime(key, value.(string)); err != nil {
+			return getDefaultDateTime(nullable)
+		}
+		return val
+	}
+
+	return getDefaultDateTime(nullable)
 }
 
 func (m *ProtoMetric) GetString(key string, nullable bool) (val interface{}) {
 	value, _ := m.msg.TryGetFieldByName(key)
 	if value == nil {
-		return getDefaultString(nullable)
+		if nullable {
+			return nil
+		}
+		return ""
 	}
 
 	return getString(reflect.ValueOf(value), nullable)
@@ -142,7 +159,7 @@ func (m *ProtoMetric) GetArray(key string, t int) (val interface{}) {
 		arr := make([]bool, 0)
 		rv := reflect.ValueOf(value)
 		for i := 0; i < rv.Len(); i++ {
-			item := getBool(rv.Index(i), false).(bool)
+			item := getBool(reflect.ValueOf(rv.Index(i).Interface()), false).(bool)
 			arr = append(arr, item)
 		}
 		return arr
@@ -170,7 +187,7 @@ func (m *ProtoMetric) GetArray(key string, t int) (val interface{}) {
 		arr := make([]decimal.Decimal, 0)
 		rv := reflect.ValueOf(value)
 		for i := 0; i < rv.Len(); i++ {
-			item := getDecimal(rv.Index(i), false).(decimal.Decimal)
+			item := getDecimal(reflect.ValueOf(rv.Index(i).Interface()), false).(decimal.Decimal)
 			arr = append(arr, item)
 		}
 		return arr
@@ -178,7 +195,7 @@ func (m *ProtoMetric) GetArray(key string, t int) (val interface{}) {
 		arr := make([]string, 0)
 		rv := reflect.ValueOf(value)
 		for i := 0; i < rv.Len(); i++ {
-			item := getString(rv.Index(i), false).(string)
+			item := getString(reflect.ValueOf(rv.Index(i).Interface()), false).(string)
 			arr = append(arr, item)
 		}
 		return arr
@@ -186,7 +203,7 @@ func (m *ProtoMetric) GetArray(key string, t int) (val interface{}) {
 		arr := make([]time.Time, 0)
 		rv := reflect.ValueOf(value)
 		for i := 0; i < rv.Len(); i++ {
-			item := getDateTime(rv.Index(i), false).(time.Time)
+			item := getDateTime(reflect.ValueOf(rv.Index(i).Interface()), false).(time.Time)
 			arr = append(arr, item)
 		}
 		return arr
@@ -202,12 +219,12 @@ func (m *ProtoMetric) GetNewKeys(knownKeys, newKeys, warnKeys *sync.Map, white, 
 	return false
 }
 
-func getIntSliceFromProto[T constraints.Signed](fieldVal interface{}, min, max int64) []interface{} {
-	arr := make([]interface{}, 0)
+func getIntSliceFromProto[T constraints.Signed](fieldVal interface{}, min, max int64) []T {
+	arr := make([]T, 0)
 	rv := reflect.ValueOf(fieldVal)
 	for i := 0; i < rv.Len(); i++ {
 		item := getIntFromProto[T](rv.Index(i).Interface(), false, min, max)
-		arr = append(arr, item)
+		arr = append(arr, item.(T))
 	}
 
 	return arr
@@ -245,12 +262,12 @@ func getIntFromProto[T constraints.Signed](fieldVal interface{}, nullable bool, 
 	}
 }
 
-func getUIntSliceFromProto[T constraints.Unsigned](fieldVal interface{}, max uint64) []interface{} {
-	arr := make([]interface{}, 0)
+func getUIntSliceFromProto[T constraints.Unsigned](fieldVal interface{}, max uint64) []T {
+	arr := make([]T, 0)
 	rv := reflect.ValueOf(fieldVal)
 	for i := 0; i < rv.Len(); i++ {
 		item := getUIntFromProto[T](rv.Index(i).Interface(), false, max)
-		arr = append(arr, item)
+		arr = append(arr, item.(T))
 	}
 
 	return arr
@@ -289,11 +306,11 @@ func getUIntFromProto[T constraints.Unsigned](fieldVal interface{}, nullable boo
 }
 
 func getFloatSliceFromProto[T constraints.Float](fieldVal interface{}, max float64) interface{} {
-	arr := make([]interface{}, 0)
+	arr := make([]T, 0)
 	rv := reflect.ValueOf(fieldVal)
 	for i := 0; i < rv.Len(); i++ {
 		item := getFloatFromProto[T](rv.Index(i).Interface(), false, max)
-		arr = append(arr, item)
+		arr = append(arr, item.(T))
 	}
 
 	return arr
@@ -305,15 +322,14 @@ func getFloatFromProto[T constraints.Float](fieldVal interface{}, nullable bool,
 	}
 
 	rv := reflect.ValueOf(fieldVal)
-	if !rv.CanFloat() {
-		return getDefaultFloat[T](nullable)
+	if rv.CanFloat() {
+		float64Val := rv.Float()
+		if float64Val > max {
+			return T(max)
+		}
+		return T(float64Val)
 	}
-
-	float64Val := rv.Float()
-	if float64Val > max {
-		return T(max)
-	}
-	return T(float64Val)
+	return getDefaultFloat[T](nullable)
 }
 
 func getBool(value reflect.Value, nullable bool) interface{} {
@@ -341,19 +357,12 @@ func getString(value reflect.Value, nullable bool) interface{} {
 	if value.Kind() == reflect.String {
 		return value.String()
 	}
-	return getDefaultString(nullable)
-}
-
-func getDefaultString(nullable bool) interface{} {
-	if nullable {
-		return nil
-	}
-	return ""
+	return fmt.Sprintf("%v", value.Interface())
 }
 
 // ProtoDeserializer represents a Protobuf deserializer.
 type ProtoDeserializer struct {
-	schemaRegsitry   schemaregistry.Client
+	schemaRegistry   schemaregistry.Client
 	baseDeserializer *serde.BaseDeserializer
 	topic            string
 }
@@ -390,7 +399,7 @@ func (p *ProtoDeserializer) ToDynamicMessage(bytes []byte) (*dynamic.Message, er
 
 func (p *ProtoDeserializer) toFileDescriptor(info schemaregistry.SchemaInfo) (*desc.FileDescriptor, error) {
 	deps := make(map[string]string)
-	err := serde.ResolveReferences(p.schemaRegsitry, info, deps)
+	err := serde.ResolveReferences(p.schemaRegistry, info, deps)
 	if err != nil {
 		return nil, err
 	}

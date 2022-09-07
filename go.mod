@@ -10,6 +10,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.1.2
 	github.com/confluentinc/confluent-kafka-go v1.9.2
 	github.com/fagongzi/goetty v1.7.0
+	github.com/golang/mock v1.4.4
 	github.com/google/gops v0.3.25
 	github.com/jcmturner/gokrb5/v8 v8.4.3
 	github.com/jhump/protoreflect v1.12.0

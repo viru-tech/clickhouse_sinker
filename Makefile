@@ -30,3 +30,6 @@ lint:
 	golangci-lint run --timeout=3m
 run: pre
 	go run cmd/clickhouse_sinker/main.go --local-cfg-file docker/test_dynamic_schema.json
+generate:
+	buf generate
+	go generate -x ./...

@@ -26,6 +26,13 @@ import (
 	"github.com/thanos-io/thanos/pkg/errors"
 )
 
+const (
+	gjsonName    = "gjson"
+	fastJsonName = "fastjson"
+	csvName      = "csv"
+	protoName    = "proto"
+)
+
 var (
 	Layouts = []string{
 		//DateTime, RFC3339
@@ -136,15 +143,15 @@ func (pp *Pool) Get() Parser {
 	v := pp.pool.Get()
 	if v == nil {
 		switch pp.name {
-		case "gjson":
+		case gjsonName:
 			return &GjsonParser{pp: pp}
-		case "fastjson":
+		case fastJsonName:
 			return &FastjsonParser{pp: pp}
-		case "csv":
+		case csvName:
 			return &CsvParser{pp: pp}
-		case "proto":
+		case protoName:
 			deserializer := &ProtoDeserializer{
-				schemaRegsitry:   pp.schemaRegistry,
+				schemaRegistry:   pp.schemaRegistry,
 				baseDeserializer: pp.deserializer,
 				topic:            pp.topic,
 			}

@@ -294,7 +294,7 @@ func (cfg *Config) normallizeTask(taskCfg *TaskConfig) (err error) {
 		taskCfg.PromLabelsBlackList = ""
 	}
 	if taskCfg.Parser == "proto" && cfg.SchemaRegistry.URL == "" {
-		err = errors.Newf("For parser %s schema registry needs", taskCfg.Parser)
+		err = errors.Newf("Schema registry is required for parser %s", taskCfg.Parser)
 		return
 	}
 	if taskCfg.DynamicSchema.Enable {

@@ -3,6 +3,15 @@ package parser
 import (
 	"encoding/binary"
 	"fmt"
+	"golang.org/x/exp/constraints"
+	"io"
+	"math"
+	"reflect"
+	"regexp"
+	"strings"
+	"sync"
+	"time"
+
 	"github.com/confluentinc/confluent-kafka-go/schemaregistry"
 	"github.com/confluentinc/confluent-kafka-go/schemaregistry/serde"
 	"github.com/housepower/clickhouse_sinker/model"
@@ -12,15 +21,7 @@ import (
 	"github.com/jhump/protoreflect/dynamic"
 	"github.com/shopspring/decimal"
 	"github.com/thanos-io/thanos/pkg/errors"
-	"golang.org/x/exp/constraints"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"io"
-	"math"
-	"reflect"
-	"regexp"
-	"strings"
-	"sync"
-	"time"
 )
 
 //go:generate mockgen -source=../vendor/github.com/confluentinc/confluent-kafka-go/schemaregistry/schemaregistry_client.go -imports=schemaregistry=github.com/confluentinc/confluent-kafka-go/schemaregistry -package=parser -mock_names=Client=MockSchemaRegistryClient -destination=schema_registry_mock_test.go

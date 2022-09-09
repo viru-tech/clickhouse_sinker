@@ -17,13 +17,13 @@ package task
 
 import (
 	"fmt"
-	"github.com/confluentinc/confluent-kafka-go/schemaregistry"
 	"math"
 	"regexp"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/confluentinc/confluent-kafka-go/schemaregistry"
 	"github.com/fagongzi/goetty"
 	"github.com/thanos-io/thanos/pkg/errors"
 	"github.com/viru-tech/clickhouse_sinker/config"

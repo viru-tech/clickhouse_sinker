@@ -32,11 +32,10 @@ type ProtoParser struct {
 }
 
 // Parse parses bytes into metric that knows how.
-func (p *ProtoParser) Parse(bs []byte) (metric model.Metric, err error) {
+func (p *ProtoParser) Parse(bs []byte) (model.Metric, error) {
 	msg, err := p.deserializer.ToDynamicMessage(bs)
 	if err != nil {
-		err = errors.Wrapf(err, "")
-		return
+		return nil, errors.Wrapf(err, "")
 	}
 	return &ProtoMetric{pp: p.pp, msg: msg}, nil
 }
@@ -46,7 +45,7 @@ type ProtoMetric struct {
 	msg *dynamic.Message
 }
 
-func (m *ProtoMetric) GetBool(key string, nullable bool) (val interface{}) {
+func (m *ProtoMetric) GetBool(key string, nullable bool) interface{} {
 	value, _ := m.msg.TryGetFieldByName(key)
 	if value == nil {
 		return getDefaultBool(nullable)
@@ -55,57 +54,57 @@ func (m *ProtoMetric) GetBool(key string, nullable bool) (val interface{}) {
 	return getBool(reflect.ValueOf(value), nullable)
 }
 
-func (m *ProtoMetric) GetInt8(key string, nullable bool) (val interface{}) {
+func (m *ProtoMetric) GetInt8(key string, nullable bool) interface{} {
 	value, _ := m.msg.TryGetFieldByName(key)
 	return getIntFromProto[int8](value, nullable, math.MinInt8, math.MaxInt8)
 }
 
-func (m *ProtoMetric) GetInt16(key string, nullable bool) (val interface{}) {
+func (m *ProtoMetric) GetInt16(key string, nullable bool) interface{} {
 	value, _ := m.msg.TryGetFieldByName(key)
 	return getIntFromProto[int16](value, nullable, math.MinInt16, math.MaxInt16)
 }
 
-func (m *ProtoMetric) GetInt32(key string, nullable bool) (val interface{}) {
+func (m *ProtoMetric) GetInt32(key string, nullable bool) interface{} {
 	value, _ := m.msg.TryGetFieldByName(key)
 	return getIntFromProto[int32](value, nullable, math.MinInt32, math.MaxInt32)
 }
 
-func (m *ProtoMetric) GetInt64(key string, nullable bool) (val interface{}) {
+func (m *ProtoMetric) GetInt64(key string, nullable bool) interface{} {
 	value, _ := m.msg.TryGetFieldByName(key)
 	return getIntFromProto[int64](value, nullable, math.MinInt64, math.MaxInt64)
 }
 
-func (m *ProtoMetric) GetUint8(key string, nullable bool) (val interface{}) {
+func (m *ProtoMetric) GetUint8(key string, nullable bool) interface{} {
 	value, _ := m.msg.TryGetFieldByName(key)
 	return getUIntFromProto[uint8](value, nullable, math.MaxUint8)
 }
 
-func (m *ProtoMetric) GetUint16(key string, nullable bool) (val interface{}) {
+func (m *ProtoMetric) GetUint16(key string, nullable bool) interface{} {
 	value, _ := m.msg.TryGetFieldByName(key)
 	return getUIntFromProto[uint16](value, nullable, math.MaxUint16)
 }
 
-func (m *ProtoMetric) GetUint32(key string, nullable bool) (val interface{}) {
+func (m *ProtoMetric) GetUint32(key string, nullable bool) interface{} {
 	value, _ := m.msg.TryGetFieldByName(key)
 	return getUIntFromProto[uint32](value, nullable, math.MaxUint32)
 }
 
-func (m *ProtoMetric) GetUint64(key string, nullable bool) (val interface{}) {
+func (m *ProtoMetric) GetUint64(key string, nullable bool) interface{} {
 	value, _ := m.msg.TryGetFieldByName(key)
 	return getUIntFromProto[uint64](value, nullable, math.MaxUint64)
 }
 
-func (m *ProtoMetric) GetFloat32(key string, nullable bool) (val interface{}) {
+func (m *ProtoMetric) GetFloat32(key string, nullable bool) interface{} {
 	value, _ := m.msg.TryGetFieldByName(key)
 	return getFloatFromProto[float32](value, nullable, math.MaxFloat32)
 }
 
-func (m *ProtoMetric) GetFloat64(key string, nullable bool) (val interface{}) {
+func (m *ProtoMetric) GetFloat64(key string, nullable bool) interface{} {
 	value, _ := m.msg.TryGetFieldByName(key)
 	return getFloatFromProto[float64](value, nullable, math.MaxFloat64)
 }
 
-func (m *ProtoMetric) GetDecimal(key string, nullable bool) (val interface{}) {
+func (m *ProtoMetric) GetDecimal(key string, nullable bool) interface{} {
 	value, _ := m.msg.TryGetFieldByName(key)
 	if value == nil {
 		return getDefaultDecimal(nullable)
@@ -115,7 +114,7 @@ func (m *ProtoMetric) GetDecimal(key string, nullable bool) (val interface{}) {
 	return getDecimal(rv, nullable)
 }
 
-func (m *ProtoMetric) GetDateTime(key string, nullable bool) (val interface{}) {
+func (m *ProtoMetric) GetDateTime(key string, nullable bool) interface{} {
 	value, _ := m.msg.TryGetFieldByName(key)
 	if value == nil {
 		return getDefaultDateTime(nullable)
@@ -126,8 +125,8 @@ func (m *ProtoMetric) GetDateTime(key string, nullable bool) (val interface{}) {
 		return ts.AsTime()
 	}
 	if rv.Kind() == reflect.String {
-		var err error
-		if val, err = m.pp.ParseDateTime(key, value.(string)); err != nil {
+		val, err := m.pp.ParseDateTime(key, value.(string))
+		if err != nil {
 			return getDefaultDateTime(nullable)
 		}
 		return val
@@ -136,7 +135,7 @@ func (m *ProtoMetric) GetDateTime(key string, nullable bool) (val interface{}) {
 	return getDefaultDateTime(nullable)
 }
 
-func (m *ProtoMetric) GetString(key string, nullable bool) (val interface{}) {
+func (m *ProtoMetric) GetString(key string, nullable bool) interface{} {
 	value, _ := m.msg.TryGetFieldByName(key)
 	if value == nil {
 		if nullable {
@@ -148,10 +147,10 @@ func (m *ProtoMetric) GetString(key string, nullable bool) (val interface{}) {
 	return getString(reflect.ValueOf(value), nullable)
 }
 
-func (m *ProtoMetric) GetArray(key string, t int) (val interface{}) {
+func (m *ProtoMetric) GetArray(key string, t int) interface{} {
 	value, _ := m.msg.TryGetFieldByName(key)
 	if value == nil {
-		return
+		return nil
 	}
 
 	switch t {
@@ -211,7 +210,7 @@ func (m *ProtoMetric) GetArray(key string, t int) (val interface{}) {
 		util.Logger.Fatal(fmt.Sprintf("unsupported array type %v", t))
 	}
 
-	return
+	return nil
 }
 
 func (m *ProtoMetric) GetNewKeys(knownKeys, newKeys, warnKeys *sync.Map, white, black *regexp.Regexp, partition int, offset int64) bool {

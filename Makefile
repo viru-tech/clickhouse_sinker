@@ -28,10 +28,10 @@ debug: vendor
 	$(GOBUILD) -ldflags '$(SINKER_LDFLAGS)' -gcflags "all=-N -l" -o ${BIN_FOLDER}/kafka_gen_metric cmd/kafka_gen_metric/main.go
 	$(GOBUILD) -ldflags '$(SINKER_LDFLAGS)' -gcflags "all=-N -l" -o ${BIN_FOLDER}/kafka_gen_prom cmd/kafka_gen_prom/main.go
 
-unittest: pre
+unittest: vendor
 	go test -v ./...
 
-benchtest: pre
+benchtest: vendor
 	go test -bench=. ./...
 
 systest: build
@@ -40,7 +40,7 @@ systest: build
 lint:
 	golangci-lint run --timeout=3m
 
-run: pre
+run: vendor
 	go run cmd/clickhouse_sinker/main.go --local-cfg-file docker/test_dynamic_schema.json
 
 generate:

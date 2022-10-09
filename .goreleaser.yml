@@ -4,11 +4,13 @@ builds:
     binary: bin/clickhouse_sinker
     goos:
       - linux
+      - darwin
+      - windows
     goarch:
       - amd64
       - arm64
     env:
-      - CGO_ENABLED=0
+      - CGO_ENABLED=1
 
 release:
   draft: false

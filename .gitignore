@@ -1,13 +1,11 @@
-tmp
-sh
+.idea
 .vscode
-node_modules/
-package-lock.json
 
 .DS_Store
 *.log
-.idea
 *.bin
-dist
-vendor
 
+bin/
+dist/
+vendor/
+node_modules/

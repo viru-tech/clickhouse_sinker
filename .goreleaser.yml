@@ -1,4 +1,4 @@
-build:
+builds:
   - id: clickhouse_sinker
     main: ./cmd/clickhouse_sinker
     binary: bin/clickhouse_sinker

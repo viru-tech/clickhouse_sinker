@@ -2,20 +2,11 @@ build:
   binary: clickhouse_sinker
   main: ./cmd/clickhouse_sinker
   goos:
-    - windows
     - darwin
     - linux
   goarch:
     - amd64
     - arm64
-  flags:
-    - -tags=sqlite
-
-archives:
-  - name_template: "{{.Binary}}_{{.Os}}_{{.Arch}}"
-    format_overrides:
-      - goos: windows
-        format: zip
 
 release:
   draft: true

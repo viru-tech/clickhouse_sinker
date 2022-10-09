@@ -9,7 +9,8 @@ build:
     - arm64
 
 release:
-  draft: true
+  draft: false
+  target_commitish: '{{ .Commit }}'
 
 snapshot:
   name_template: "{{.Tag}}"

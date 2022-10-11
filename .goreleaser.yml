@@ -10,7 +10,7 @@ builds:
       - CGO_ENABLED=1
 
 release:
-  draft: false
+  draft: true
   target_commitish: '{{ .Commit }}'
 
 snapshot:

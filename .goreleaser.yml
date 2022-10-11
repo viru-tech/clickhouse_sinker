@@ -1,17 +1,13 @@
 builds:
   - id: clickhouse_sinker
     main: ./cmd/clickhouse_sinker
-    binary: bin/clickhouse_sinker
+    binary: clickhouse_sinker
     goos:
       - linux
-      - darwin
-      - windows
     goarch:
       - amd64
-      - arm64
     env:
       - CGO_ENABLED=1
-      - CC=aarch64-linux-gnu-gcc
 
 release:
   draft: false

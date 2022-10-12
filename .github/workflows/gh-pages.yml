@@ -5,7 +5,8 @@ on:
     branches: [master]
 
 jobs:
-  build:
+  build-and-push:
+    name: build-and-push
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2

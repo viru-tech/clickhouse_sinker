@@ -74,9 +74,9 @@ curl "localhost:8123" -d 'TRUNCATE TABLE test_auto_schema'
 curl "localhost:8123" -d 'TRUNCATE TABLE test_dynamic_schema'
 
 echo "publish clickhouse_sinker config"
-./nacos_publish_config --nacos-addr 127.0.0.1:8848 --nacos-username nacos --nacos-password nacos  --nacos-dataid test_fixed_schema --local-cfg-file docker/test_fixed_schema.json
-./nacos_publish_config --nacos-addr 127.0.0.1:8848 --nacos-username nacos --nacos-password nacos  --nacos-dataid test_auto_schema --local-cfg-file docker/test_auto_schema.json
-./nacos_publish_config --nacos-addr 127.0.0.1:8848 --nacos-username nacos --nacos-password nacos  --nacos-dataid test_dynamic_schema --local-cfg-file docker/test_dynamic_schema.json
+./bin/nacos_publish_config --nacos-addr 127.0.0.1:8848 --nacos-username nacos --nacos-password nacos  --nacos-dataid test_fixed_schema --local-cfg-file docker/test_fixed_schema.json
+./bin/nacos_publish_config --nacos-addr 127.0.0.1:8848 --nacos-username nacos --nacos-password nacos  --nacos-dataid test_auto_schema --local-cfg-file docker/test_auto_schema.json
+./bin/nacos_publish_config --nacos-addr 127.0.0.1:8848 --nacos-username nacos --nacos-password nacos  --nacos-dataid test_dynamic_schema --local-cfg-file docker/test_dynamic_schema.json
 
 echo "start clickhouse_sinker to consume"
 sudo docker exec kafka kafka-consumer-groups --bootstrap-server localhost:9093 --execute --reset-offsets --group test_fixed_schema --all-topics --to-earliest

@@ -54,4 +54,6 @@ type ColumnWithType struct {
 	Nullable   bool
 	Array      bool
 	SourceName string
+	// Const is used to set column value to some constant from config.
+	Const string
 }

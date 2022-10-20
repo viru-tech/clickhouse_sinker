@@ -40,7 +40,7 @@ import (
 
 var (
 	ErrTblNotExist       = errors.Newf("table doesn't exist")
-	selectSQLTemplate    = `SELECT name, type, default_kind FROM system.columns WHERE database = '%s' AND TABLE = '%s'`
+	selectSQLTemplate    = `SELECT name, type, default_kind FROM system.columns WHERE database = '%s' AND table = '%s'`
 	lowCardinalityRegexp = regexp.MustCompile(`LowCardinality\((.+)\)`)
 
 	// https://github.com/ClickHouse/ClickHouse/issues/24036

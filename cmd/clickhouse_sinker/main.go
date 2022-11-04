@@ -435,7 +435,7 @@ func (s *Sinker) applyConfig(newCfg *config.Config) (err error) {
 }
 
 func (s *Sinker) applyFirstConfig(newCfg *config.Config) (err error) {
-	util.Logger.Info("going to apply the first config", zap.Reflect("config", newCfg))
+	util.Logger.Info("going to apply the first config")
 	// 1. Initialize clickhouse connections
 	chCfg := &newCfg.Clickhouse
 	if err = pool.InitClusterConn(chCfg.Hosts, chCfg.Port, chCfg.DB, chCfg.Username, chCfg.Password,
@@ -468,7 +468,7 @@ func (s *Sinker) applyFirstConfig(newCfg *config.Config) (err error) {
 }
 
 func (s *Sinker) applyAnotherConfig(newCfg *config.Config) (err error) {
-	util.Logger.Info("going to apply another config", zap.Int("number", s.numCfg), zap.Reflect("config", newCfg))
+	util.Logger.Info("going to apply another config", zap.Int("number", s.numCfg))
 	if !reflect.DeepEqual(newCfg.Kafka, s.curCfg.Kafka) || !reflect.DeepEqual(newCfg.Clickhouse, s.curCfg.Clickhouse) {
 		// 1. Stop tasks gracefully. Wait until all flying data be processed (write to CH and commit to Kafka).
 		s.stopAllTasks()

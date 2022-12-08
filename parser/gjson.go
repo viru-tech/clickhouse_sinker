@@ -48,59 +48,20 @@ type GjsonMetric struct {
 	raw string
 }
 
-func (c *GjsonMetric) GetString(key string, nullable bool) (val interface{}) {
-	r := gjson.Get(c.raw, key)
-	if !r.Exists() || r.Type == gjson.Null {
-		if nullable {
-			return
-		}
-		val = ""
-		return
-	}
-	switch r.Type {
-	case gjson.Null:
-		val = ""
-	case gjson.String:
-		val = r.Str
-	default:
-		val = r.Raw
-	}
-	return
+func (c *GjsonMetric) GetString(key string, nullable bool) interface{} {
+	return c.stringOrDefault(key, nullable, "")
 }
 
 func (c *GjsonMetric) GetUUID(key string, nullable bool) interface{} {
-	r := gjson.Get(c.raw, key)
-	if !r.Exists() || r.Type == gjson.Null {
-		if nullable {
-			return nil
-		}
-		return zeroUUID
-	}
-
-	var val string
-	switch r.Type {
-	case gjson.Null:
-		return zeroUUID
-	case gjson.String:
-		val = r.Str
-	default:
-		val = r.Raw
-	}
-
-	if val != "" {
-		return val
-	}
-	return zeroUUID
+	return c.stringOrDefault(key, nullable, zeroUUID)
 }
 
-func (c *GjsonMetric) GetBool(key string, nullable bool) (val interface{}) {
+func (c *GjsonMetric) GetBool(key string, nullable bool) interface{} {
 	r := gjson.Get(c.raw, key)
 	if !gjCompatibleBool(r) {
-		val = getDefaultBool(nullable)
-		return
+		return getDefaultBool(nullable)
 	}
-	val = (r.Type == gjson.True)
-	return
+	return r.Type == gjson.True
 }
 
 func (c *GjsonMetric) GetDecimal(key string, nullable bool) (val interface{}) {
@@ -159,11 +120,36 @@ func (c *GjsonMetric) GetFloat64(key string, nullable bool) (val interface{}) {
 }
 
 func (c *GjsonMetric) GetIPv4(key string, nullable bool) interface{} {
-	panic("")
+	return c.stringOrDefault(key, nullable, zeroIPv4)
 }
 
 func (c *GjsonMetric) GetIPv6(key string, nullable bool) interface{} {
-	panic("")
+	return c.stringOrDefault(key, nullable, zeroIPv6)
+}
+
+func (c *GjsonMetric) stringOrDefault(key string, nullable bool, defaultValue string) interface{} {
+	r := gjson.Get(c.raw, key)
+	if !r.Exists() || r.Type == gjson.Null {
+		if nullable {
+			return nil
+		}
+		return defaultValue
+	}
+
+	var val string
+	switch r.Type {
+	case gjson.Null:
+		return defaultValue
+	case gjson.String:
+		val = r.Str
+	default:
+		val = r.Raw
+	}
+
+	if val != "" {
+		return val
+	}
+	return defaultValue
 }
 
 func GjsonGetInt[T constraints.Signed](c *GjsonMetric, key string, nullable bool, min, max int64) (val interface{}) {

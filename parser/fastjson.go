@@ -56,11 +56,11 @@ type FastjsonMetric struct {
 }
 
 func (c *FastjsonMetric) GetString(key string, nullable bool) (val interface{}) {
-	return c.getStringOrDefault(key, nullable, "")
+	return c.stringOrDefault(key, nullable, "")
 }
 
 func (c *FastjsonMetric) GetUUID(key string, nullable bool) interface{} {
-	return c.getStringOrDefault(key, nullable, zeroUUID)
+	return c.stringOrDefault(key, nullable, zeroUUID)
 }
 
 func (c *FastjsonMetric) GetBool(key string, nullable bool) (val interface{}) {
@@ -128,14 +128,14 @@ func (c *FastjsonMetric) GetFloat64(key string, nullable bool) (val interface{})
 }
 
 func (c *FastjsonMetric) GetIPv4(key string, nullable bool) interface{} {
-	return c.getStringOrDefault(key, nullable, zeroIPv4)
+	return c.stringOrDefault(key, nullable, zeroIPv4)
 }
 
 func (c *FastjsonMetric) GetIPv6(key string, nullable bool) interface{} {
-	return c.getStringOrDefault(key, nullable, zeroIPv6)
+	return c.stringOrDefault(key, nullable, zeroIPv6)
 }
 
-func (c *FastjsonMetric) getStringOrDefault(key string, nullable bool, defaultValue string) interface{} {
+func (c *FastjsonMetric) stringOrDefault(key string, nullable bool, defaultValue string) interface{} {
 	v := c.value.Get(key)
 	if v == nil || v.Type() == fastjson.TypeNull {
 		if nullable {

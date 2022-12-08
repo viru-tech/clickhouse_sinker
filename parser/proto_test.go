@@ -2,20 +2,24 @@ package parser
 
 import (
 	"fmt"
+	"log"
+	"math"
+	"os"
+	"path/filepath"
+	"runtime"
+	"testing"
+	"time"
+
 	"github.com/confluentinc/confluent-kafka-go/schemaregistry"
 	"github.com/confluentinc/confluent-kafka-go/schemaregistry/serde"
 	"github.com/confluentinc/confluent-kafka-go/schemaregistry/serde/protobuf"
 	"github.com/golang/mock/gomock"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	"github.com/viru-tech/clickhouse_sinker/model"
 	"github.com/viru-tech/clickhouse_sinker/parser/testproto"
-	"google.golang.org/protobuf/types/known/timestamppb"
-	"log"
-	"math"
-	"os"
-	"testing"
-	"time"
 )
 
 const (
@@ -39,9 +43,9 @@ var (
 		NumUint64:      123,
 		Str:            "escaped_\"ws",
 		StrDate:        "2009-07-13",
+		Timestamp:      timestamppb.New(testDate),
 		Obj:            &testproto.NestedTest{Str: "test"},
 		ArrayEmpty:     []int32{},
-		Timestamp:      timestamppb.New(testDate),
 		ArrayBool:      []bool{true, false},
 		ArrayNumInt32:  []int32{-123, 0, 123},
 		ArrayNumInt64:  []int64{-123, 0, 123},
@@ -51,6 +55,12 @@ var (
 		ArrayNumUint64: []uint64{0, 123},
 		ArrayStr:       []string{"aa", "bb", "cc"},
 		ArrayTimestamp: []*timestamppb.Timestamp{timestamppb.New(testDate)},
+		Uuid:           "2211a6ec-3799-41c1-ac41-4ab02f8e3cf2",
+		ArrayUuid:      []string{"2211a6ec-3799-41c1-ac41-4ab02f8e3cf2", "f6acf2ad-757a-4eb3-96b2-6c3d6f2bec6e"},
+		Ipv4:           "1.2.3.4",
+		ArrayIpv4:      []string{"1.2.3.4", "2.3.4.5"},
+		Ipv6:           "fe80::74e6:b5f3:fe92:830e",
+		ArrayIpv6:      []string{"fe80::74e6:b5f3:fe92:830e", "fe80::2a3:aeff:fe53:743e"},
 	}
 	testMaxNumMessage = &testproto.Test{
 		NumInt32:  math.MaxInt32,
@@ -71,7 +81,13 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	data, err := os.ReadFile("testproto/test.proto")
+	_, currFile, _, ok := runtime.Caller(0)
+	if !ok {
+		log.Fatal("failed to get current file location")
+	}
+
+	protoPath := filepath.Join(currFile, "..", "testproto", "test.proto")
+	data, err := os.ReadFile(protoPath)
 	if err != nil {
 		log.Fatalf("failed to read .proto file: %v", err)
 	}
@@ -683,4 +699,64 @@ func TestProtoGetArray(t *testing.T) {
 		v := metric.GetArray(tc.Field, tc.Type)
 		require.Equal(t, tc.ExpVal, v, desc)
 	}
+}
+
+func TestProtoGetUUID(t *testing.T) {
+	t.Parallel()
+
+	testCases := []SimpleCase{
+		// nullable: false
+		{"not_exist", false, zeroUUID},
+		{"uuid", false, "2211a6ec-3799-41c1-ac41-4ab02f8e3cf2"},
+		{"array_uuid", false, "[2211a6ec-3799-41c1-ac41-4ab02f8e3cf2 f6acf2ad-757a-4eb3-96b2-6c3d6f2bec6e]"},
+		{"array_empty", false, "[]"},
+		// nullable: true
+		{"not_exist", true, nil},
+		{"uuid", true, "2211a6ec-3799-41c1-ac41-4ab02f8e3cf2"},
+		{"array_uuid", true, "[2211a6ec-3799-41c1-ac41-4ab02f8e3cf2 f6acf2ad-757a-4eb3-96b2-6c3d6f2bec6e]"},
+		{"array_empty", true, "[]"},
+	}
+
+	metric := createProtoMetric(t, testBaseMessage)
+	doTestSimpleForParser(t, protoName, "GetUUID", testCases, metric)
+}
+
+func TestProtoGetIPv4(t *testing.T) {
+	t.Parallel()
+
+	testCases := []SimpleCase{
+		// nullable: false
+		{"not_exist", false, zeroIPv4},
+		{"ipv4", false, "1.2.3.4"},
+		{"array_ipv4", false, "[1.2.3.4 2.3.4.5]"},
+		{"array_empty", false, "[]"},
+		// nullable: true
+		{"not_exist", true, nil},
+		{"ipv4", true, "1.2.3.4"},
+		{"array_ipv4", true, "[1.2.3.4 2.3.4.5]"},
+		{"array_empty", true, "[]"},
+	}
+
+	metric := createProtoMetric(t, testBaseMessage)
+	doTestSimpleForParser(t, protoName, "GetIPv4", testCases, metric)
+}
+
+func TestProtoGetIPv6(t *testing.T) {
+	t.Parallel()
+
+	testCases := []SimpleCase{
+		// nullable: false
+		{"not_exist", false, zeroIPv6},
+		{"ipv6", false, "fe80::74e6:b5f3:fe92:830e"},
+		{"array_ipv6", false, "[fe80::74e6:b5f3:fe92:830e fe80::2a3:aeff:fe53:743e]"},
+		{"array_empty", false, "[]"},
+		// nullable: true
+		{"not_exist", true, nil},
+		{"ipv6", true, "fe80::74e6:b5f3:fe92:830e"},
+		{"array_ipv6", true, "[fe80::74e6:b5f3:fe92:830e fe80::2a3:aeff:fe53:743e]"},
+		{"array_empty", true, "[]"},
+	}
+
+	metric := createProtoMetric(t, testBaseMessage)
+	doTestSimpleForParser(t, protoName, "GetIPv6", testCases, metric)
 }

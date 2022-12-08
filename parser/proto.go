@@ -170,13 +170,13 @@ func (m *ProtoMetric) GetIPv4(key string, nullable bool) interface{} {
 		if nullable {
 			return nil
 		}
-		return "" // TODO: check.
+		return zeroIPv4
 	}
 
 	if v := getString(reflect.ValueOf(value)); v != "" {
 		return v
 	}
-	return "" // TODO: check.
+	return zeroIPv4
 }
 
 func (m *ProtoMetric) GetIPv6(key string, nullable bool) interface{} {
@@ -185,13 +185,13 @@ func (m *ProtoMetric) GetIPv6(key string, nullable bool) interface{} {
 		if nullable {
 			return nil
 		}
-		return "" // TODO: check.
+		return zeroIPv6
 	}
 
 	if v := getString(reflect.ValueOf(value)); v != "" {
 		return v
 	}
-	return "" // TODO: check.
+	return zeroIPv6
 }
 
 func (m *ProtoMetric) GetArray(key string, t int) interface{} {

@@ -269,6 +269,10 @@ func doTestSimpleForParser(t *testing.T, parserName, method string, tt []SimpleC
 				v = metric.GetString(tc.Field, tc.Nullable)
 			case "GetUUID":
 				v = metric.GetUUID(tc.Field, tc.Nullable)
+			case "GetIPv4":
+				v = metric.GetIPv4(tc.Field, tc.Nullable)
+			case "GetIPv6":
+				v = metric.GetIPv6(tc.Field, tc.Nullable)
 			default:
 				t.Fatal("unknown method")
 			}

@@ -69,6 +69,9 @@ var jsonSchema = map[string]string{
 	"array_str_time_rfc3339":    "DateTimeArray",
 	"array_str_time_clickhouse": "DateTimeArray",
 	"array_obj":                 "Unknown",
+	"uuid":                      "String",
+	"ipv4":                      "String",
+	"ipv6":                      "String",
 }
 
 var csvSchema = []string{
@@ -102,6 +105,9 @@ var csvSchema = []string{
 	"array_str_time_rfc3339",
 	"array_str_time_clickhouse",
 	"array_obj",
+	"uuid",
+	"ipv4",
+	"ipv6",
 }
 
 var (
@@ -221,10 +227,15 @@ func testCaseDescription(parserName, method, field string, nullable bool) string
 
 func doTestSimple(t *testing.T, method string, testCases []SimpleCase) {
 	t.Helper()
+
 	for i := range names {
 		name := names[i]
 		metric := metrics[name]
-		doTestSimpleForParser(t, name, method, testCases, metric)
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			doTestSimpleForParser(t, name, method, testCases, metric)
+		})
 	}
 }
 
@@ -236,7 +247,7 @@ func doTestSimpleForParser(t *testing.T, parserName, method string, tt []SimpleC
 
 			desc := testCaseDescription(parserName, method, tc.Field, tc.Nullable)
 			if parserName == "csv" && (sliceContains([]string{"GetBool", "GetInt64", "GetFloat64", "GetDateTime"}, method) && sliceContains([]string{"str_int", "str_float"}, tc.Field) || tc.Nullable) {
-				t.Skipf("incompatible with fastjson parser: %v", desc)
+				t.Skipf("incompatible with %s parser: %v", parserName, desc)
 			}
 
 			var v interface{}
@@ -455,6 +466,57 @@ func TestParserDateTime(t *testing.T) {
 		{"array_empty", true, nil},
 	}
 	doTestSimple(t, "GetDateTime", testCases)
+}
+
+func TestParserGetUUID(t *testing.T) {
+	t.Parallel()
+
+	testCases := []SimpleCase{
+		// nullable: false
+		{"not_exist", false, zeroUUID},
+		{"uuid", false, "2211a6ec-3799-41c1-ac41-4ab02f8e3cf2"},
+		{"array_empty", false, "[]"},
+		// nullable: true
+		{"not_exist", true, nil},
+		{"uuid", true, "2211a6ec-3799-41c1-ac41-4ab02f8e3cf2"},
+		{"array_empty", true, "[]"},
+	}
+
+	doTestSimple(t, "GetUUID", testCases)
+}
+
+func TestParserGetIPv4(t *testing.T) {
+	t.Parallel()
+
+	testCases := []SimpleCase{
+		// nullable: false
+		{"not_exist", false, zeroIPv4},
+		{"ipv4", false, "1.2.3.4"},
+		{"array_empty", false, "[]"},
+		// nullable: true
+		{"not_exist", true, nil},
+		{"ipv4", true, "1.2.3.4"},
+		{"array_empty", true, "[]"},
+	}
+
+	doTestSimple(t, "GetIPv4", testCases)
+}
+
+func TestParserGetIPv6(t *testing.T) {
+	t.Parallel()
+
+	testCases := []SimpleCase{
+		// nullable: false
+		{"not_exist", false, zeroIPv6},
+		{"ipv6", false, "fe80::74e6:b5f3:fe92:830e"},
+		{"array_empty", false, "[]"},
+		// nullable: true
+		{"not_exist", true, nil},
+		{"ipv6", true, "fe80::74e6:b5f3:fe92:830e"},
+		{"array_empty", true, "[]"},
+	}
+
+	doTestSimple(t, "GetIPv6", testCases)
 }
 
 func TestParserArray(t *testing.T) {

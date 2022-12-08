@@ -19,7 +19,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/viru-tech/clickhouse_sinker/model"
-	"github.com/viru-tech/clickhouse_sinker/parser/testproto"
+	"github.com/viru-tech/clickhouse_sinker/parser/testdata"
 )
 
 const (
@@ -32,7 +32,7 @@ var schemaInfo schemaregistry.SchemaInfo
 
 var (
 	testDate        = time.Date(2022, 9, 1, 10, 20, 30, 0, time.UTC)
-	testBaseMessage = &testproto.Test{
+	testBaseMessage = &testdata.Test{
 		BoolTrue:       true,
 		BoolFalse:      false,
 		NumInt32:       123,
@@ -44,7 +44,7 @@ var (
 		Str:            "escaped_\"ws",
 		StrDate:        "2009-07-13",
 		Timestamp:      timestamppb.New(testDate),
-		Obj:            &testproto.NestedTest{Str: "test"},
+		Obj:            &testdata.NestedTest{Str: "test"},
 		ArrayEmpty:     []int32{},
 		ArrayBool:      []bool{true, false},
 		ArrayNumInt32:  []int32{-123, 0, 123},
@@ -62,7 +62,7 @@ var (
 		Ipv6:           "fe80::74e6:b5f3:fe92:830e",
 		ArrayIpv6:      []string{"fe80::74e6:b5f3:fe92:830e", "fe80::2a3:aeff:fe53:743e"},
 	}
-	testMaxNumMessage = &testproto.Test{
+	testMaxNumMessage = &testdata.Test{
 		NumInt32:  math.MaxInt32,
 		NumInt64:  math.MaxInt64,
 		NumFloat:  math.MaxFloat32,
@@ -70,7 +70,7 @@ var (
 		NumUint32: math.MaxUint32,
 		NumUint64: math.MaxUint64,
 	}
-	testMinNumMessage = &testproto.Test{
+	testMinNumMessage = &testdata.Test{
 		NumInt32:  math.MinInt32,
 		NumInt64:  math.MinInt64,
 		NumFloat:  math.SmallestNonzeroFloat32,
@@ -86,7 +86,7 @@ func TestMain(m *testing.M) {
 		log.Fatal("failed to get current file location")
 	}
 
-	protoPath := filepath.Join(currFile, "..", "testproto", "test.proto")
+	protoPath := filepath.Join(currFile, "..", "testdata", "test.proto")
 	data, err := os.ReadFile(protoPath)
 	if err != nil {
 		log.Fatalf("failed to read .proto file: %v", err)
@@ -101,7 +101,7 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func createProtoMetric(t *testing.T, message *testproto.Test) model.Metric {
+func createProtoMetric(t *testing.T, message *testdata.Test) model.Metric {
 	t.Helper()
 
 	ctrl := gomock.NewController(t)

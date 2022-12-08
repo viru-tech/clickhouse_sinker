@@ -31,6 +31,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tidwall/gjson"
 	"github.com/valyala/fastjson"
+
 	"github.com/viru-tech/clickhouse_sinker/model"
 	"github.com/viru-tech/clickhouse_sinker/util"
 )
@@ -225,51 +226,54 @@ func doTestSimple(t *testing.T, method string, testCases []SimpleCase) {
 	}
 }
 
-func doTestSimpleForParser(t *testing.T, parserName, method string, testCases []SimpleCase, metric model.Metric) {
-	var skipped []string
-	for j := range testCases {
-		var v interface{}
-		desc := testCaseDescription(parserName, method, testCases[j].Field, testCases[j].Nullable)
-		if parserName == "csv" && (sliceContains([]string{"GetBool", "GetInt64", "GetFloat64", "GetDateTime"}, method) && sliceContains([]string{"str_int", "str_float"}, testCases[j].Field) || testCases[j].Nullable) {
-			skipped = append(skipped, desc)
-			continue
-		}
-		switch method {
-		case "GetBool":
-			v = metric.GetBool(testCases[j].Field, testCases[j].Nullable)
-		case "GetInt8":
-			v = metric.GetInt8(testCases[j].Field, testCases[j].Nullable)
-		case "GetInt16":
-			v = metric.GetInt16(testCases[j].Field, testCases[j].Nullable)
-		case "GetInt32":
-			v = metric.GetInt32(testCases[j].Field, testCases[j].Nullable)
-		case "GetInt64":
-			v = metric.GetInt64(testCases[j].Field, testCases[j].Nullable)
-		case "GetUint8":
-			v = metric.GetUint8(testCases[j].Field, testCases[j].Nullable)
-		case "GetUint16":
-			v = metric.GetUint16(testCases[j].Field, testCases[j].Nullable)
-		case "GetUint32":
-			v = metric.GetUint32(testCases[j].Field, testCases[j].Nullable)
-		case "GetUint64":
-			v = metric.GetUint64(testCases[j].Field, testCases[j].Nullable)
-		case "GetFloat32":
-			v = metric.GetFloat32(testCases[j].Field, testCases[j].Nullable)
-		case "GetFloat64":
-			v = metric.GetFloat64(testCases[j].Field, testCases[j].Nullable)
-		case "GetDecimal":
-			v = metric.GetDecimal(testCases[j].Field, testCases[j].Nullable)
-		case "GetDateTime":
-			v = metric.GetDateTime(testCases[j].Field, testCases[j].Nullable)
-		case "GetString":
-			v = metric.GetString(testCases[j].Field, testCases[j].Nullable)
-		default:
-			panic("error!")
-		}
-		require.Equal(t, testCases[j].ExpVal, v, desc)
-	}
-	if skipped != nil {
-		log.Printf("Skipped %d cases incompatible with fastjson parser: %v\n", len(skipped), strings.Join(skipped, ", "))
+func doTestSimpleForParser(t *testing.T, parserName, method string, tt []SimpleCase, metric model.Metric) {
+	for i := range tt {
+		tc := tt[i]
+		t.Run(tc.Field, func(t *testing.T) {
+			t.Parallel()
+
+			desc := testCaseDescription(parserName, method, tc.Field, tc.Nullable)
+			if parserName == "csv" && (sliceContains([]string{"GetBool", "GetInt64", "GetFloat64", "GetDateTime"}, method) && sliceContains([]string{"str_int", "str_float"}, tc.Field) || tc.Nullable) {
+				t.Skipf("incompatible with fastjson parser: %v", desc)
+			}
+
+			var v interface{}
+			switch method {
+			case "GetBool":
+				v = metric.GetBool(tc.Field, tc.Nullable)
+			case "GetInt8":
+				v = metric.GetInt8(tc.Field, tc.Nullable)
+			case "GetInt16":
+				v = metric.GetInt16(tc.Field, tc.Nullable)
+			case "GetInt32":
+				v = metric.GetInt32(tc.Field, tc.Nullable)
+			case "GetInt64":
+				v = metric.GetInt64(tc.Field, tc.Nullable)
+			case "GetUint8":
+				v = metric.GetUint8(tc.Field, tc.Nullable)
+			case "GetUint16":
+				v = metric.GetUint16(tc.Field, tc.Nullable)
+			case "GetUint32":
+				v = metric.GetUint32(tc.Field, tc.Nullable)
+			case "GetUint64":
+				v = metric.GetUint64(tc.Field, tc.Nullable)
+			case "GetFloat32":
+				v = metric.GetFloat32(tc.Field, tc.Nullable)
+			case "GetFloat64":
+				v = metric.GetFloat64(tc.Field, tc.Nullable)
+			case "GetDecimal":
+				v = metric.GetDecimal(tc.Field, tc.Nullable)
+			case "GetDateTime":
+				v = metric.GetDateTime(tc.Field, tc.Nullable)
+			case "GetString":
+				v = metric.GetString(tc.Field, tc.Nullable)
+			case "GetUUID":
+				v = metric.GetUUID(tc.Field, tc.Nullable)
+			default:
+				t.Fatal("unknown method")
+			}
+			require.Equal(t, tc.ExpVal, v, desc)
+		})
 	}
 }
 
@@ -568,7 +572,7 @@ func TestParseDateTime(t *testing.T) {
 		bdLocalDate = time.Date(2009, 7, 13, 0, 0, 0, 0, time.Local).UTC()
 
 		testCases := []DateTimeCase{
-			//DateTime, RFC3339
+			// DateTime, RFC3339
 			{"2009-07-13T09:07:13.123+08:00", bdShNs},
 			{"2009-07-13T09:07:13.123+0800", bdShNs},
 			{"2009-07-13T09:07:13+08:00", bdShSec},
@@ -577,7 +581,7 @@ func TestParseDateTime(t *testing.T) {
 			{"2009-07-13T09:07:13Z", bdUtcSec},
 			{"2009-07-13T09:07:13.123", bdLocalNs},
 			{"2009-07-13T09:07:13", bdLocalSec},
-			//DateTime, ISO8601
+			// DateTime, ISO8601
 			{"2009-07-13 09:07:13.123+08:00", bdShNs},
 			{"2009-07-13 09:07:13.123+0800", bdShNs},
 			{"2009-07-13 09:07:13+08:00", bdShSec},
@@ -586,7 +590,7 @@ func TestParseDateTime(t *testing.T) {
 			{"2009-07-13 09:07:13Z", bdUtcSec},
 			{"2009-07-13 09:07:13.123", bdLocalNs},
 			{"2009-07-13 09:07:13", bdLocalSec},
-			//DateTime, other layouts supported by golang
+			// DateTime, other layouts supported by golang
 			{"Mon Jul 13 09:07:13 2009", bdLocalSec},
 			{"Mon Jul 13 09:07:13 CST 2009", bdShSec},
 			{"Mon Jul 13 09:07:13 +0800 2009", bdShSec},
@@ -595,10 +599,10 @@ func TestParseDateTime(t *testing.T) {
 			{"Monday, 13-Jul-09 09:07:13 CST", bdShSec},
 			{"Mon, 13 Jul 2009 09:07:13 CST", bdShSec},
 			{"Mon, 13 Jul 2009 09:07:13 +0800", bdShSec},
-			//DateTime, linux utils
+			// DateTime, linux utils
 			{"Mon 13 Jul 2009 09:07:13 AM CST", bdShSec},
 			{"Mon Jul 13 09:07:13 CST 2009", bdShSec},
-			//DateTime, home-brewed
+			// DateTime, home-brewed
 			{"Jul 13, 2009 09:07:13.123+08:00", bdShNs},
 			{"Jul 13, 2009 09:07:13.123+0800", bdShNs},
 			{"Jul 13, 2009 09:07:13+08:00", bdShSec},
@@ -615,7 +619,7 @@ func TestParseDateTime(t *testing.T) {
 			{"13/Jul/2009 09:07:13 Z", bdUtcSec},
 			{"13/Jul/2009 09:07:13.123", bdLocalNs},
 			{"13/Jul/2009 09:07:13", bdLocalSec},
-			//Date
+			// Date
 			{"2009-07-13", bdLocalDate},
 			{"13/07/2009", bdLocalDate},
 			{"13/Jul/2009", bdLocalDate},

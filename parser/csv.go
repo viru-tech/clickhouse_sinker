@@ -68,35 +68,13 @@ type CsvMetric struct {
 	values []string
 }
 
-// GetString get the value as string
+// GetString get the value as string.
 func (c *CsvMetric) GetString(key string, nullable bool) (val interface{}) {
-	var idx int
-	var ok bool
-	if idx, ok = c.pp.csvFormat[key]; !ok || c.values[idx] == "null" {
-		if nullable {
-			return
-		}
-		val = ""
-		return
-	}
-	val = c.values[idx]
-	return
+	return c.getStringOrDefault(key, nullable, "")
 }
 
 func (c *CsvMetric) GetUUID(key string, nullable bool) interface{} {
-	var idx int
-	var ok bool
-	if idx, ok = c.pp.csvFormat[key]; !ok || c.values[idx] == "null" {
-		if nullable {
-			return nil
-		}
-		return zeroUUID
-	}
-
-	if v := c.values[idx]; v != "" {
-		return v
-	}
-	return zeroUUID
+	return c.getStringOrDefault(key, nullable, zeroUUID)
 }
 
 // GetDecimal returns the value as decimal
@@ -124,7 +102,7 @@ func (c *CsvMetric) GetBool(key string, nullable bool) (val interface{}) {
 		val = false
 		return
 	}
-	val = (c.values[idx] == "true")
+	val = c.values[idx] == "true"
 	return
 }
 
@@ -169,11 +147,27 @@ func (c *CsvMetric) GetFloat64(key string, nullable bool) (val interface{}) {
 }
 
 func (c *CsvMetric) GetIPv4(key string, nullable bool) interface{} {
-	panic("")
+	return c.getStringOrDefault(key, nullable, zeroIPv4)
 }
 
 func (c *CsvMetric) GetIPv6(key string, nullable bool) interface{} {
-	panic("")
+	return c.getStringOrDefault(key, nullable, zeroIPv6)
+}
+
+func (c *CsvMetric) getStringOrDefault(key string, nullable bool, defaultValue string) interface{} {
+	var idx int
+	var ok bool
+	if idx, ok = c.pp.csvFormat[key]; !ok || c.values[idx] == "null" {
+		if nullable {
+			return nil
+		}
+		return defaultValue
+	}
+
+	if v := c.values[idx]; v != "" {
+		return v
+	}
+	return defaultValue
 }
 
 func CsvGetInt[T constraints.Signed](c *CsvMetric, key string, nullable bool, min, max int64) (val interface{}) {

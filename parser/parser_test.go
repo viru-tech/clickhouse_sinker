@@ -21,12 +21,15 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"os"
+	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
+	"github.com/confluentinc/confluent-kafka-go/schemaregistry"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tidwall/gjson"
@@ -152,10 +155,10 @@ var (
 	timeUnit      = float64(0.000001)
 )
 
-var initialize sync.Once
-var errInit error
-var names = []string{fastJsonName, gjsonName, csvName}
-var metrics map[string]model.Metric
+var (
+	names   = []string{fastJsonName, gjsonName, csvName}
+	metrics = make(map[string]model.Metric)
+)
 
 type SimpleCase struct {
 	Field    string
@@ -174,13 +177,38 @@ type DateTimeCase struct {
 	ExpVal time.Time
 }
 
-func initMetrics() {
-	var pp *Pool
-	var parser Parser
-	var metric model.Metric
-	var sample []byte
-	metrics = make(map[string]model.Metric)
+func TestMain(m *testing.M) {
+	_, currFile, _, ok := runtime.Caller(0)
+	if !ok {
+		log.Fatal("failed to get current file location")
+	}
+
+	protoPath := filepath.Join(currFile, "..", "testdata", "test.proto")
+	data, err := os.ReadFile(protoPath)
+	if err != nil {
+		log.Fatalf("failed to read .proto file: %v", err)
+	}
+
+	schemaInfo = schemaregistry.SchemaInfo{
+		Schema:     string(data),
+		SchemaType: "PROTOBUF",
+		References: []schemaregistry.Reference{},
+	}
+
+	if err := initMetrics(); err != nil {
+		log.Fatalf("failed to init metrics: %v", err)
+	}
+
+	os.Exit(m.Run())
+}
+
+func initMetrics() error {
 	for _, name := range names {
+		var (
+			pp     *Pool
+			sample []byte
+		)
+
 		switch name {
 		case csvName:
 			pp, _ = NewParserPool(csvName, csvSchema, ",", "", timeUnit, "", nil)
@@ -192,14 +220,16 @@ func initMetrics() {
 			pp, _ = NewParserPool(gjsonName, nil, "", "", timeUnit, "", nil)
 			sample = jsonSample
 		}
-		parser = pp.Get()
-		if metric, errInit = parser.Parse(sample); errInit != nil {
-			msg := fmt.Sprintf("parser.Parse failed: %+v\n", errInit)
-			panic(msg)
+
+		metric, err := pp.Get().Parse(sample)
+		if err != nil {
+			return fmt.Errorf("failed to parse %s metrics: %w", name, err)
 		}
+
 		metrics[name] = metric
 	}
 	util.InitLogger([]string{"stdout"})
+	return nil
 }
 
 func sliceContains(list []string, target string) bool {
@@ -217,8 +247,6 @@ func testCaseDescription(parserName, method, field string, nullable bool) string
 
 func doTestSimple(t *testing.T, method string, testCases []SimpleCase) {
 	t.Helper()
-	initialize.Do(initMetrics)
-	require.Nil(t, errInit)
 	for i := range names {
 		name := names[i]
 		metric := metrics[name]
@@ -456,9 +484,6 @@ func TestParserDateTime(t *testing.T) {
 }
 
 func TestParserArray(t *testing.T) {
-	initialize.Do(initMetrics)
-	require.Nil(t, errInit)
-
 	testCases := []ArrayCase{
 		{"not_exist", model.Float64, []float64{}},
 		{"null", model.Float64, []float64{}},

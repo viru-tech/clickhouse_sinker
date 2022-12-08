@@ -2,11 +2,7 @@ package parser
 
 import (
 	"fmt"
-	"log"
 	"math"
-	"os"
-	"path/filepath"
-	"runtime"
 	"testing"
 	"time"
 
@@ -79,27 +75,6 @@ var (
 		NumUint64: 0,
 	}
 )
-
-func TestMain(m *testing.M) {
-	_, currFile, _, ok := runtime.Caller(0)
-	if !ok {
-		log.Fatal("failed to get current file location")
-	}
-
-	protoPath := filepath.Join(currFile, "..", "testdata", "test.proto")
-	data, err := os.ReadFile(protoPath)
-	if err != nil {
-		log.Fatalf("failed to read .proto file: %v", err)
-	}
-
-	schemaInfo = schemaregistry.SchemaInfo{
-		Schema:     string(data),
-		SchemaType: "PROTOBUF",
-		References: []schemaregistry.Reference{},
-	}
-
-	os.Exit(m.Run())
-}
 
 func createProtoMetric(t *testing.T, message *testdata.Test) model.Metric {
 	t.Helper()

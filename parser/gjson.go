@@ -158,6 +158,14 @@ func (c *GjsonMetric) GetFloat64(key string, nullable bool) (val interface{}) {
 	return GjsonGetFloat[float64](c, key, nullable, math.MaxFloat64)
 }
 
+func (c *GjsonMetric) GetIPv4(key string, nullable bool) interface{} {
+	panic("")
+}
+
+func (c *GjsonMetric) GetIPv6(key string, nullable bool) interface{} {
+	panic("")
+}
+
 func GjsonGetInt[T constraints.Signed](c *GjsonMetric, key string, nullable bool, min, max int64) (val interface{}) {
 	r := gjson.Get(c.raw, key)
 	if !gjCompatibleInt(r) {
@@ -259,7 +267,7 @@ func (c *GjsonMetric) GetArray(key string, typ int) (val interface{}) {
 	case model.Bool:
 		results := make([]bool, 0, len(array))
 		for _, e := range array {
-			v := (e.Exists() && e.Type == gjson.True)
+			v := e.Exists() && e.Type == gjson.True
 			results = append(results, v)
 		}
 		val = results

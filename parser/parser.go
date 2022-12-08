@@ -34,6 +34,7 @@ const (
 	protoName    = "proto"
 
 	zeroUUID = "00000000-0000-0000-0000-000000000000"
+	zero
 )
 
 var (

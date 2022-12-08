@@ -161,6 +161,13 @@ func (c *FastjsonMetric) GetFloat64(key string, nullable bool) (val interface{})
 	return FastjsonGetFloat[float64](c, key, nullable, math.MaxFloat64)
 }
 
+func (c *FastjsonMetric) GetIPv4(key string, nullable bool) interface{} {
+	panic("")
+}
+func (c *FastjsonMetric) GetIPv6(key string, nullable bool) interface{} {
+	panic("")
+}
+
 func FastjsonGetInt[T constraints.Signed](c *FastjsonMetric, key string, nullable bool, min, max int64) (val interface{}) {
 	v := c.value.Get(key)
 	if !fjCompatibleInt(v) {

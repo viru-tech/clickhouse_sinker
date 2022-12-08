@@ -168,6 +168,14 @@ func (c *CsvMetric) GetFloat64(key string, nullable bool) (val interface{}) {
 	return CsvGetFloat[float64](c, key, nullable, math.MaxFloat64)
 }
 
+func (c *CsvMetric) GetIPv4(key string, nullable bool) interface{} {
+	panic("")
+}
+
+func (c *CsvMetric) GetIPv6(key string, nullable bool) interface{} {
+	panic("")
+}
+
 func CsvGetInt[T constraints.Signed](c *CsvMetric, key string, nullable bool, min, max int64) (val interface{}) {
 	var idx int
 	var ok bool
@@ -271,7 +279,7 @@ func (c *CsvMetric) GetArray(key string, typ int) (val interface{}) {
 	case model.Bool:
 		results := make([]bool, 0, len(array))
 		for _, e := range array {
-			v := (e.Exists() && e.Type == gjson.True)
+			v := e.Exists() && e.Type == gjson.True
 			results = append(results, v)
 		}
 		val = results

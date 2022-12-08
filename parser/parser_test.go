@@ -30,7 +30,6 @@ import (
 	"time"
 
 	"github.com/confluentinc/confluent-kafka-go/schemaregistry"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tidwall/gjson"
 	"github.com/valyala/fastjson"
@@ -38,40 +37,6 @@ import (
 	"github.com/viru-tech/clickhouse_sinker/model"
 	"github.com/viru-tech/clickhouse_sinker/util"
 )
-
-// https://golang.org/pkg/math/, Mathematical constants
-var jsonSample = []byte(`{
-	"null": null,
-	"bool_true": true,
-	"bool_false": false,
-	"num_int": 123,
-	"num_float": 123.321,
-	"str": "escaped_\"ws",
-	"str_int": "123",
-	"str_float": "123.321",
-	"str_date_1": "2009-07-13",
-	"str_date_2": "13/07/2009",
-	"str_time_rfc3339_1": "2009-07-13T09:07:13Z",
-	"str_time_rfc3339_2": "2009-07-13T09:07:13.123+08:00",
-	"str_time_clickhouse_1": "2009-07-13 09:07:13",
-	"str_time_clickhouse_2": "2009-07-13 09:07:13.123",
-	"obj": {"i":[1,2,3],"f":[1.1,2.2,3.3],"s":["aa","bb","cc"],"e":[]},
-	"array_empty": [],
-	"array_null": [null],
-	"array_bool": [true,false],
-	"array_num_int_1": [0, 255, 256, 65535, 65536, 4294967295, 4294967296, 18446744073709551615, 18446744073709551616],
-	"array_num_int_2": [-9223372036854775808, -2147483649, -2147483648, -32769, -32768, -129, -128, 0, 127, 128, 32767, 32768, 2147483647, 2147483648, 9223372036854775807],
-	"array_num_float": [4.940656458412465441765687928682213723651e-324, 1.401298464324817070923729583289916131280e-45, 0.0, 3.40282346638528859811704183484516925440e+38, 1.797693134862315708145274237317043567981e+308, -inf, +inf],
-	"array_str": ["aa","bb","cc"],
-	"array_str_int_1": ["0", "255", "256", "65535", "65536", "4294967295", "4294967296", "18446744073709551615", "18446744073709551616"],
-	"array_str_int_2": ["-9223372036854775808", "-2147483649", "-2147483648", "-32769", "-32768", "-129", "-128", "0", "127", "128", "32767", "32768", "2147483647", "2147483648", "9223372036854775807"],
-	"array_str_float": ["4.940656458412465441765687928682213723651e-324", "1.401298464324817070923729583289916131280e-45", "0.0", "3.40282346638528859811704183484516925440e+38", "1.797693134862315708145274237317043567981e+308", "-inf", "+inf"],
-	"array_str_date_1": ["2009-07-13","2009-07-14","2009-07-15"],
-	"array_str_date_2": ["13/07/2009","14/07/2009","15/07/2009"],
-	"array_str_time_rfc3339": ["2009-07-13T09:07:13Z", "2009-07-13T09:07:13+08:00", "2009-07-13T09:07:13.123Z", "2009-07-13T09:07:13.123+08:00"],
-	"array_str_time_clickhouse": ["2009-07-13 09:07:13", "2009-07-13 09:07:13.123"],
-	"array_obj": [{"i":[1,2,3],"f":[1.1,2.2,3.3]},{"s":["aa","bb","cc"],"e":[]}]
-}`)
 
 var jsonSchema = map[string]string{
 	"null":                      "Unknown",
@@ -105,8 +70,6 @@ var jsonSchema = map[string]string{
 	"array_str_time_clickhouse": "DateTimeArray",
 	"array_obj":                 "Unknown",
 }
-
-var csvSample = []byte(`null,true,false,123,123.321,"escaped_""ws",123,123.321,2009-07-13,13/07/2009,2009-07-13T09:07:13Z,2009-07-13T09:07:13.123+08:00,2009-07-13 09:07:13,2009-07-13 09:07:13.123,"{""i"":[1,2,3],""f"":[1.1,2.2,3.3],""s"":[""aa"",""bb"",""cc""],""e"":[]}",[],[null],"[true,false]","[0,255,256,65535,65536,4294967295,4294967296,18446744073709551615,18446744073709551616]","[-9223372036854775808,-2147483649,-2147483648,-32769,-32768,-129,-128,0,127,128,32767,32768,2147483647,2147483648,9223372036854775807]","[4.940656458412465441765687928682213723651e-324,1.401298464324817070923729583289916131280e-45,0.0,3.40282346638528859811704183484516925440e+38,1.797693134862315708145274237317043567981e+308]","[""aa"",""bb"",""cc""]","[""0"",""255"",""256"",""65535"",""65536"",""4294967295"",""4294967296"",""18446744073709551615"",""18446744073709551616""]","[""-9223372036854775808"",""-2147483649"",""-2147483648"",""-32769"",""-32768"",""-129"",""-128"",""0"",""127"",""128"",""32767"",""32768"",""2147483647"",""2147483648"",""9223372036854775807""]","[""4.940656458412465441765687928682213723651e-324"",""1.401298464324817070923729583289916131280e-45"",""0.0"",""3.40282346638528859811704183484516925440e+38"",""1.797693134862315708145274237317043567981e+308""]","[""2009-07-13"",""2009-07-14"",""2009-07-15""]","[""13/07/2009"",""14/07/2009"",""15/07/2009""]","[""2009-07-13T09:07:13Z"",""2009-07-13T09:07:13+08:00"",""2009-07-13T09:07:13.123Z"",""2009-07-13T09:07:13.123+08:00""]","[""2009-07-13 09:07:13"",""2009-07-13 09:07:13.123""]","[{""i"":[1,2,3],""f"":[1.1,2.2,3.3]},{""s"":[""aa"",""bb"",""cc""],""e"":[]}]"`)
 
 var csvSchema = []string{
 	"null",
@@ -153,6 +116,9 @@ var (
 	bdLocalSec    = bdLocalNsOrig.Truncate(1 * time.Second).UTC()
 	bdLocalDate   = time.Date(2009, 7, 13, 0, 0, 0, 0, time.Local).UTC()
 	timeUnit      = float64(0.000001)
+
+	jsonSample []byte
+	csvSample  []byte
 )
 
 var (
@@ -182,11 +148,19 @@ func TestMain(m *testing.M) {
 	if !ok {
 		log.Fatal("failed to get current file location")
 	}
+	testDataPath := filepath.Join(currFile, "..", "testdata")
 
-	protoPath := filepath.Join(currFile, "..", "testdata", "test.proto")
-	data, err := os.ReadFile(protoPath)
+	data, err := os.ReadFile(filepath.Join(testDataPath, "test.proto"))
 	if err != nil {
 		log.Fatalf("failed to read .proto file: %v", err)
+	}
+	jsonSample, err = os.ReadFile(filepath.Join(testDataPath, "test.json"))
+	if err != nil {
+		log.Fatalf("failed to read .json file: %v", err)
+	}
+	csvSample, err = os.ReadFile(filepath.Join(testDataPath, "test.csv"))
+	if err != nil {
+		log.Fatalf("failed to read .csv file: %v", err)
 	}
 
 	schemaInfo = schemaregistry.SchemaInfo{
@@ -484,7 +458,7 @@ func TestParserDateTime(t *testing.T) {
 }
 
 func TestParserArray(t *testing.T) {
-	testCases := []ArrayCase{
+	tt := []ArrayCase{
 		{"not_exist", model.Float64, []float64{}},
 		{"null", model.Float64, []float64{}},
 		{"num_int", model.Int64, []int64{}},
@@ -563,21 +537,25 @@ func TestParserArray(t *testing.T) {
 	for i := range names {
 		name := names[i]
 		metric := metrics[name]
-		var skipped []string
-		for j := range testCases {
-			var v interface{}
-			desc := fmt.Sprintf(`%s.GetArray("%s", %s)`, name, testCases[j].Field, model.GetTypeName(testCases[j].Type))
-			if (name == gjsonName && testCases[j].Field == "array_num_float") ||
-				(name == csvName && sliceContains([]string{"array_num_float", "array_str_float"}, testCases[j].Field)) {
-				skipped = append(skipped, desc)
-				continue
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			for i := range tt {
+				tc := tt[i]
+				t.Run(tc.Field, func(t *testing.T) {
+					t.Parallel()
+
+					var v interface{}
+					desc := fmt.Sprintf(`%s.GetArray("%s", %s)`, name, tc.Field, model.GetTypeName(tc.Type))
+					if (name == gjsonName && tc.Field == "array_num_float") ||
+						(name == csvName && sliceContains([]string{"array_num_float", "array_str_float"}, tc.Field)) {
+						t.Skipf("incompatible with fastjson parser: %v", desc)
+					}
+					v = metric.GetArray(tc.Field, tc.Type)
+					require.Equal(t, tc.ExpVal, v, desc)
+				})
 			}
-			v = metric.GetArray(testCases[j].Field, testCases[j].Type)
-			assert.Equal(t, testCases[j].ExpVal, v, desc)
-		}
-		if skipped != nil {
-			log.Printf("Skipped %d cases incompatible with fastjson parser: %v\n", len(skipped), strings.Join(skipped, ", "))
-		}
+		})
 	}
 }
 

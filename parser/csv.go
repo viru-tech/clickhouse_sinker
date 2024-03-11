@@ -31,8 +31,8 @@ import (
 	"github.com/valyala/fastjson/fastfloat"
 	"golang.org/x/exp/constraints"
 
-	"github.com/viru-tech/clickhouse_sinker/model"
-	"github.com/viru-tech/clickhouse_sinker/util"
+	"github.com/housepower/clickhouse_sinker/model"
+	"github.com/housepower/clickhouse_sinker/util"
 )
 
 var _ Parser = (*CsvParser)(nil)

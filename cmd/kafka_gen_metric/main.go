@@ -50,7 +50,7 @@ import (
 	"github.com/twmb/franz-go/pkg/kgo"
 	"go.uber.org/zap"
 
-	"github.com/viru-tech/clickhouse_sinker/util"
+	"github.com/housepower/clickhouse_sinker/util"
 )
 
 const (

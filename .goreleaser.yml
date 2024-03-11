@@ -6,6 +6,7 @@ builds:
       - linux
     goarch:
       - amd64
+      - arm64
     env:
       - CGO_ENABLED=1
 
@@ -21,8 +22,8 @@ checksum:
 
 nfpms:
   - vendor: clickhouse_sinker
-    homepage: https://github.com/viru-tech/clickhouse_sinker
-    maintainer: VIRU developers
+    homepage: https://github.com/housepower/clickhouse_sinker
+    maintainer: HousePower developers
     description: Sinker program that transfer kafka message into ClickHouse.
     license: MIT
     formats:

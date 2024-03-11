@@ -24,7 +24,7 @@ import (
 	"github.com/confluentinc/confluent-kafka-go/schemaregistry/serde"
 	"github.com/thanos-io/thanos/pkg/errors"
 
-	"github.com/viru-tech/clickhouse_sinker/model"
+	"github.com/housepower/clickhouse_sinker/model"
 )
 
 const (

@@ -13,6 +13,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/housepower/clickhouse_sinker/config"
+	"github.com/housepower/clickhouse_sinker/util"
 	"github.com/nacos-group/nacos-sdk-go/clients"
 	"github.com/nacos-group/nacos-sdk-go/clients/config_client"
 	"github.com/nacos-group/nacos-sdk-go/clients/naming_client"
@@ -20,8 +22,6 @@ import (
 	"github.com/nacos-group/nacos-sdk-go/model"
 	"github.com/nacos-group/nacos-sdk-go/vo"
 	"github.com/thanos-io/thanos/pkg/errors"
-	"github.com/viru-tech/clickhouse_sinker/config"
-	"github.com/viru-tech/clickhouse_sinker/util"
 	"go.uber.org/zap"
 	"gopkg.in/natefinch/lumberjack.v2"
 )

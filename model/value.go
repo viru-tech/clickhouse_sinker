@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/viru-tech/clickhouse_sinker/util"
+	"github.com/housepower/clickhouse_sinker/util"
 )
 
 const (

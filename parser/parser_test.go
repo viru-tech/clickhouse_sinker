@@ -34,8 +34,8 @@ import (
 	"github.com/tidwall/gjson"
 	"github.com/valyala/fastjson"
 
-	"github.com/viru-tech/clickhouse_sinker/model"
-	"github.com/viru-tech/clickhouse_sinker/util"
+	"github.com/housepower/clickhouse_sinker/model"
+	"github.com/housepower/clickhouse_sinker/util"
 )
 
 var jsonSchema = map[string]string{

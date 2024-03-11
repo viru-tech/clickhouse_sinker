@@ -1,10 +1,10 @@
 syntax = "proto3";
 
-package viru_tech.clickhouse_sinker.parser.testproto.v1;
+package housepower.clickhouse_sinker.parser.testproto.v1;
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "viru-tech/clickhouse_sinker/parser/testproto";
+option go_package = "housepower/clickhouse_sinker/parser/testproto";
 
 message Test {
   NestedTest null = 1;

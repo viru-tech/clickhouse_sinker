@@ -21,8 +21,8 @@ import (
 	"golang.org/x/exp/constraints"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/viru-tech/clickhouse_sinker/model"
-	"github.com/viru-tech/clickhouse_sinker/util"
+	"github.com/housepower/clickhouse_sinker/model"
+	"github.com/housepower/clickhouse_sinker/util"
 )
 
 //go:generate mockgen -source=../vendor/github.com/confluentinc/confluent-kafka-go/schemaregistry/schemaregistry_client.go -imports=schemaregistry=github.com/confluentinc/confluent-kafka-go/schemaregistry -package=parser -mock_names=Client=MockSchemaRegistryClient -destination=schema_registry_mock_test.go

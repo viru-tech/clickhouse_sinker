@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/cespare/xxhash/v2"
-	"github.com/viru-tech/clickhouse_sinker/config"
-	"github.com/viru-tech/clickhouse_sinker/statistics"
+	"github.com/housepower/clickhouse_sinker/config"
+	"github.com/housepower/clickhouse_sinker/statistics"
 )
 
 var (

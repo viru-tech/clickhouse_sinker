@@ -1,5 +1,5 @@
 version: v1
-name: buf.build/viru-tech/clickhouse_sinker
+name: buf.build/housepower/clickhouse_sinker
 lint:
   use:
     - DEFAULT

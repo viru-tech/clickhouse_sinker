@@ -14,8 +14,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"github.com/viru-tech/clickhouse_sinker/model"
-	"github.com/viru-tech/clickhouse_sinker/parser/testdata"
+	"github.com/housepower/clickhouse_sinker/model"
+	"github.com/housepower/clickhouse_sinker/parser/testdata"
 )
 
 const (

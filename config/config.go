@@ -23,7 +23,7 @@ import (
 
 	"github.com/thanos-io/thanos/pkg/errors"
 
-	"github.com/viru-tech/clickhouse_sinker/util"
+	"github.com/housepower/clickhouse_sinker/util"
 )
 
 // Config struct used for different configurations use

@@ -1,10 +1,19 @@
-.idea
-.vscode
+.idea/
+.vscode/
+.fleet/
+
+bin/
+dist/
+vendor/
+
+node_modules/
+package-lock.json
+
+nacos_cache
 
 .DS_Store
 *.log
 *.bin
-
-bin/
-dist/
-node_modules/
+*.out
+*.pem
+*.p12

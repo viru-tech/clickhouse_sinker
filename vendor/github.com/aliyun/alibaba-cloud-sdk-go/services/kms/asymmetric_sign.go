@@ -21,6 +21,7 @@ import (
 )
 
 // AsymmetricSign invokes the kms.AsymmetricSign API synchronously
+// api document: https://help.aliyun.com/api/kms/asymmetricsign.html
 func (client *Client) AsymmetricSign(request *AsymmetricSignRequest) (response *AsymmetricSignResponse, err error) {
 	response = CreateAsymmetricSignResponse()
 	err = client.DoAction(request, response)
@@ -28,6 +29,8 @@ func (client *Client) AsymmetricSign(request *AsymmetricSignRequest) (response *
 }
 
 // AsymmetricSignWithChan invokes the kms.AsymmetricSign API asynchronously
+// api document: https://help.aliyun.com/api/kms/asymmetricsign.html
+// asynchronous document: https://help.aliyun.com/document_detail/66220.html
 func (client *Client) AsymmetricSignWithChan(request *AsymmetricSignRequest) (<-chan *AsymmetricSignResponse, <-chan error) {
 	responseChan := make(chan *AsymmetricSignResponse, 1)
 	errChan := make(chan error, 1)
@@ -50,6 +53,8 @@ func (client *Client) AsymmetricSignWithChan(request *AsymmetricSignRequest) (<-
 }
 
 // AsymmetricSignWithCallback invokes the kms.AsymmetricSign API asynchronously
+// api document: https://help.aliyun.com/api/kms/asymmetricsign.html
+// asynchronous document: https://help.aliyun.com/document_detail/66220.html
 func (client *Client) AsymmetricSignWithCallback(request *AsymmetricSignRequest, callback func(response *AsymmetricSignResponse, err error)) <-chan int {
 	result := make(chan int, 1)
 	err := client.AddAsyncTask(func() {
@@ -80,10 +85,10 @@ type AsymmetricSignRequest struct {
 // AsymmetricSignResponse is the response struct for api AsymmetricSign
 type AsymmetricSignResponse struct {
 	*responses.BaseResponse
-	KeyVersionId string `json:"KeyVersionId" xml:"KeyVersionId"`
-	KeyId        string `json:"KeyId" xml:"KeyId"`
 	Value        string `json:"Value" xml:"Value"`
+	KeyId        string `json:"KeyId" xml:"KeyId"`
 	RequestId    string `json:"RequestId" xml:"RequestId"`
+	KeyVersionId string `json:"KeyVersionId" xml:"KeyVersionId"`
 }
 
 // CreateAsymmetricSignRequest creates a request to invoke AsymmetricSign API
@@ -92,7 +97,6 @@ func CreateAsymmetricSignRequest() (request *AsymmetricSignRequest) {
 		RpcRequest: &requests.RpcRequest{},
 	}
 	request.InitWithApiInfo("Kms", "2016-01-20", "AsymmetricSign", "kms", "openAPI")
-	request.Method = requests.POST
 	return
 }
 

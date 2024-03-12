@@ -21,6 +21,7 @@ import (
 )
 
 // ListSecretVersionIds invokes the kms.ListSecretVersionIds API synchronously
+// api document: https://help.aliyun.com/api/kms/listsecretversionids.html
 func (client *Client) ListSecretVersionIds(request *ListSecretVersionIdsRequest) (response *ListSecretVersionIdsResponse, err error) {
 	response = CreateListSecretVersionIdsResponse()
 	err = client.DoAction(request, response)
@@ -28,6 +29,8 @@ func (client *Client) ListSecretVersionIds(request *ListSecretVersionIdsRequest)
 }
 
 // ListSecretVersionIdsWithChan invokes the kms.ListSecretVersionIds API asynchronously
+// api document: https://help.aliyun.com/api/kms/listsecretversionids.html
+// asynchronous document: https://help.aliyun.com/document_detail/66220.html
 func (client *Client) ListSecretVersionIdsWithChan(request *ListSecretVersionIdsRequest) (<-chan *ListSecretVersionIdsResponse, <-chan error) {
 	responseChan := make(chan *ListSecretVersionIdsResponse, 1)
 	errChan := make(chan error, 1)
@@ -50,6 +53,8 @@ func (client *Client) ListSecretVersionIdsWithChan(request *ListSecretVersionIds
 }
 
 // ListSecretVersionIdsWithCallback invokes the kms.ListSecretVersionIds API asynchronously
+// api document: https://help.aliyun.com/api/kms/listsecretversionids.html
+// asynchronous document: https://help.aliyun.com/document_detail/66220.html
 func (client *Client) ListSecretVersionIdsWithCallback(request *ListSecretVersionIdsRequest, callback func(response *ListSecretVersionIdsResponse, err error)) <-chan int {
 	result := make(chan int, 1)
 	err := client.AddAsyncTask(func() {
@@ -80,12 +85,12 @@ type ListSecretVersionIdsRequest struct {
 // ListSecretVersionIdsResponse is the response struct for api ListSecretVersionIds
 type ListSecretVersionIdsResponse struct {
 	*responses.BaseResponse
-	SecretName string     `json:"SecretName" xml:"SecretName"`
-	RequestId  string     `json:"RequestId" xml:"RequestId"`
-	PageSize   int        `json:"PageSize" xml:"PageSize"`
-	PageNumber int        `json:"PageNumber" xml:"PageNumber"`
-	TotalCount int        `json:"TotalCount" xml:"TotalCount"`
-	VersionIds VersionIds `json:"VersionIds" xml:"VersionIds"`
+	PageNumber int         `json:"PageNumber" xml:"PageNumber"`
+	PageSize   int         `json:"PageSize" xml:"PageSize"`
+	RequestId  string      `json:"RequestId" xml:"RequestId"`
+	SecretName string      `json:"SecretName" xml:"SecretName"`
+	TotalCount int         `json:"TotalCount" xml:"TotalCount"`
+	VersionIds []VersionId `json:"VersionIds" xml:"VersionIds"`
 }
 
 // CreateListSecretVersionIdsRequest creates a request to invoke ListSecretVersionIds API
@@ -94,7 +99,6 @@ func CreateListSecretVersionIdsRequest() (request *ListSecretVersionIdsRequest) 
 		RpcRequest: &requests.RpcRequest{},
 	}
 	request.InitWithApiInfo("Kms", "2016-01-20", "ListSecretVersionIds", "kms", "openAPI")
-	request.Method = requests.POST
 	return
 }
 

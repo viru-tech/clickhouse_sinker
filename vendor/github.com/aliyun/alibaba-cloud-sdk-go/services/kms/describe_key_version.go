@@ -21,6 +21,7 @@ import (
 )
 
 // DescribeKeyVersion invokes the kms.DescribeKeyVersion API synchronously
+// api document: https://help.aliyun.com/api/kms/describekeyversion.html
 func (client *Client) DescribeKeyVersion(request *DescribeKeyVersionRequest) (response *DescribeKeyVersionResponse, err error) {
 	response = CreateDescribeKeyVersionResponse()
 	err = client.DoAction(request, response)
@@ -28,6 +29,8 @@ func (client *Client) DescribeKeyVersion(request *DescribeKeyVersionRequest) (re
 }
 
 // DescribeKeyVersionWithChan invokes the kms.DescribeKeyVersion API asynchronously
+// api document: https://help.aliyun.com/api/kms/describekeyversion.html
+// asynchronous document: https://help.aliyun.com/document_detail/66220.html
 func (client *Client) DescribeKeyVersionWithChan(request *DescribeKeyVersionRequest) (<-chan *DescribeKeyVersionResponse, <-chan error) {
 	responseChan := make(chan *DescribeKeyVersionResponse, 1)
 	errChan := make(chan error, 1)
@@ -50,6 +53,8 @@ func (client *Client) DescribeKeyVersionWithChan(request *DescribeKeyVersionRequ
 }
 
 // DescribeKeyVersionWithCallback invokes the kms.DescribeKeyVersion API asynchronously
+// api document: https://help.aliyun.com/api/kms/describekeyversion.html
+// asynchronous document: https://help.aliyun.com/document_detail/66220.html
 func (client *Client) DescribeKeyVersionWithCallback(request *DescribeKeyVersionRequest, callback func(response *DescribeKeyVersionResponse, err error)) <-chan int {
 	result := make(chan int, 1)
 	err := client.AddAsyncTask(func() {
@@ -88,7 +93,6 @@ func CreateDescribeKeyVersionRequest() (request *DescribeKeyVersionRequest) {
 		RpcRequest: &requests.RpcRequest{},
 	}
 	request.InitWithApiInfo("Kms", "2016-01-20", "DescribeKeyVersion", "kms", "openAPI")
-	request.Method = requests.POST
 	return
 }
 

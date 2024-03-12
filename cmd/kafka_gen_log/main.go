@@ -39,9 +39,9 @@ CREATE TABLE dist_apache_access_log ON CLUSTER abc AS apache_access_log ENGINE =
 import (
 	"bufio"
 	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
+	"log"
 	"math/rand"
 	"os"
 	"os/signal"
@@ -153,13 +153,15 @@ func (g *LogGenerator) Init() error {
 	g.lineno = 0
 	fnPatt := regexp.MustCompile(LogfilePattern)
 	d, err := os.Open(LogfileDir)
-	defer func() {
-		d.Close()
-	}()
 	if err != nil {
 		err = errors.Wrapf(err, "")
 		return err
 	}
+	defer func() {
+		if err := d.Close(); err != nil {
+			log.Printf("error closing file: %v", err)
+		}
+	}()
 	fis, err := d.Readdir(0)
 	if err != nil {
 		err = errors.Wrapf(err, "")
@@ -285,7 +287,7 @@ func (g *LogGenerator) Run() {
 				Xforwardfor:     "",
 			}
 			_ = wp.Submit(func() {
-				if b, err = json.Marshal(&logObj); err != nil {
+				if b, err = JSONMarshal(&logObj); err != nil {
 					err = errors.Wrapf(err, "")
 					util.Logger.Fatal("got error", zap.Error(err))
 				}
@@ -331,7 +333,7 @@ log_file_pattern: file name pattern, for example, '^secure.*$'`, os.Args[0], os.
 		util.Logger.Fatal("got error", zap.Error(err))
 	}
 
-	ctx, _ := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
+	ctx, _ := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	g := &LogGenerator{}
 	if err := g.Init(); err != nil {
 		util.Logger.Fatal("got error", zap.Error(err))

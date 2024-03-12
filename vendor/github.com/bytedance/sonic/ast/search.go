@@ -17,8 +17,7 @@
 package ast
 
 import (
-    `fmt`
-
+    `github.com/bytedance/sonic/internal/rt`
     `github.com/bytedance/sonic/internal/native/types`
 )
 
@@ -35,32 +34,34 @@ func NewSearcher(str string) *Searcher {
     }
 }
 
+// GetByPathCopy search in depth from top json and returns a **Copied** json node at the path location
+func (self *Searcher) GetByPathCopy(path ...interface{}) (Node, error) {
+    return self.getByPath(true, path...)
+}
+
+// GetByPathNoCopy search in depth from top json and returns a **Referenced** json node at the path location
+//
+// WARN: this search directly refer partial json from top json, which has faster speed,
+// may consumes more memory.
 func (self *Searcher) GetByPath(path ...interface{}) (Node, error) {
-    self.parser.p = 0
+    return self.getByPath(false, path...)
+}
 
+func (self *Searcher) getByPath(copystring bool, path ...interface{}) (Node, error) {
     var err types.ParsingError
-    for _, p := range path {
-        switch p.(type) {
-        case int:
-            if err = self.parser.searchIndex(p.(int)); err != 0 {
-                return Node{}, self.parser.ExportError(err)
-            }
-        case string:
-            if err = self.parser.searchKey(p.(string)); err != 0 {
-                return Node{}, self.parser.ExportError(err)
-            }
-        default:
-            panic("path must be either int or string")
-        }
-    }
+    var start int
 
-    var start = self.parser.p
-    if start, err = self.parser.skip(); err != 0 {
-        return Node{}, self.parser.ExportError(err)
-    }
-    ns := len(self.parser.s)
-    if self.parser.p > ns || start >= ns || start>=self.parser.p {
-        return Node{}, fmt.Errorf("skip %d char out of json boundary", start)
+    self.parser.p = 0
+    start, err = self.parser.getByPath(path...)
+    if err != 0 {
+        // for compatibility with old version
+        if err == types.ERR_NOT_FOUND {
+            return Node{}, ErrNotExist
+        }
+        if err == types.ERR_UNSUPPORT_TYPE {
+            panic("path must be either int(>=0) or string")
+        }
+        return Node{}, self.parser.syntaxError(err)
     }
 
     t := switchRawType(self.parser.s[start])
@@ -68,5 +69,12 @@ func (self *Searcher) GetByPath(path ...interface{}) (Node, error) {
         return Node{}, self.parser.ExportError(err)
     }
 
-    return newRawNode(self.parser.s[start:self.parser.p], t), nil
+    // copy string to reducing memory usage
+    var raw string
+    if copystring {
+        raw = rt.Mem2Str([]byte(self.parser.s[start:self.parser.p]))
+    } else {
+        raw = self.parser.s[start:self.parser.p]
+    }
+    return newRawNode(raw, t), nil
 }

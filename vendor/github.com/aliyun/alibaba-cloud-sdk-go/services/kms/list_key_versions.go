@@ -21,6 +21,7 @@ import (
 )
 
 // ListKeyVersions invokes the kms.ListKeyVersions API synchronously
+// api document: https://help.aliyun.com/api/kms/listkeyversions.html
 func (client *Client) ListKeyVersions(request *ListKeyVersionsRequest) (response *ListKeyVersionsResponse, err error) {
 	response = CreateListKeyVersionsResponse()
 	err = client.DoAction(request, response)
@@ -28,6 +29,8 @@ func (client *Client) ListKeyVersions(request *ListKeyVersionsRequest) (response
 }
 
 // ListKeyVersionsWithChan invokes the kms.ListKeyVersions API asynchronously
+// api document: https://help.aliyun.com/api/kms/listkeyversions.html
+// asynchronous document: https://help.aliyun.com/document_detail/66220.html
 func (client *Client) ListKeyVersionsWithChan(request *ListKeyVersionsRequest) (<-chan *ListKeyVersionsResponse, <-chan error) {
 	responseChan := make(chan *ListKeyVersionsResponse, 1)
 	errChan := make(chan error, 1)
@@ -50,6 +53,8 @@ func (client *Client) ListKeyVersionsWithChan(request *ListKeyVersionsRequest) (
 }
 
 // ListKeyVersionsWithCallback invokes the kms.ListKeyVersions API asynchronously
+// api document: https://help.aliyun.com/api/kms/listkeyversions.html
+// asynchronous document: https://help.aliyun.com/document_detail/66220.html
 func (client *Client) ListKeyVersionsWithCallback(request *ListKeyVersionsRequest, callback func(response *ListKeyVersionsResponse, err error)) <-chan int {
 	result := make(chan int, 1)
 	err := client.AddAsyncTask(func() {
@@ -79,10 +84,10 @@ type ListKeyVersionsRequest struct {
 // ListKeyVersionsResponse is the response struct for api ListKeyVersions
 type ListKeyVersionsResponse struct {
 	*responses.BaseResponse
-	PageSize    int         `json:"PageSize" xml:"PageSize"`
 	RequestId   string      `json:"RequestId" xml:"RequestId"`
-	PageNumber  int         `json:"PageNumber" xml:"PageNumber"`
 	TotalCount  int         `json:"TotalCount" xml:"TotalCount"`
+	PageNumber  int         `json:"PageNumber" xml:"PageNumber"`
+	PageSize    int         `json:"PageSize" xml:"PageSize"`
 	KeyVersions KeyVersions `json:"KeyVersions" xml:"KeyVersions"`
 }
 
@@ -92,7 +97,6 @@ func CreateListKeyVersionsRequest() (request *ListKeyVersionsRequest) {
 		RpcRequest: &requests.RpcRequest{},
 	}
 	request.InitWithApiInfo("Kms", "2016-01-20", "ListKeyVersions", "kms", "openAPI")
-	request.Method = requests.POST
 	return
 }
 

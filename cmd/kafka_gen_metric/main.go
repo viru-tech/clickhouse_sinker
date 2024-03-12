@@ -34,7 +34,6 @@ CREATE TABLE dist_sensor_dt_result_online ON CLUSTER abc AS sensor_dt_result_onl
 
 import (
 	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"math/rand"
@@ -167,7 +166,7 @@ func generate() {
 
 					_ = wp.Submit(func() {
 						var b []byte
-						if b, err = json.Marshal(&metric); err != nil {
+						if b, err = JSONMarshal(&metric); err != nil {
 							err = errors.Wrapf(err, "")
 							util.Logger.Fatal("got error", zap.Error(err))
 						}
@@ -212,7 +211,7 @@ topic: for example, sensor_dt_result_online`, os.Args[0], os.Args[0])
 	}
 
 	var prevLines, prevSize int64
-	ctx, _ := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
+	ctx, _ := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	go generate()
 
 	ticker := time.NewTicker(10 * time.Second)

@@ -22,7 +22,7 @@ import (
 )
 
 type Config struct {
-	AutoRetry         bool              `default:"false"`
+	AutoRetry         bool              `default:"true"`
 	MaxRetryTime      int               `default:"3"`
 	UserAgent         string            `default:""`
 	Debug             bool              `default:"false"`

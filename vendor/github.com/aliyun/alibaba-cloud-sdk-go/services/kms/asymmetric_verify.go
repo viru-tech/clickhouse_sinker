@@ -21,6 +21,7 @@ import (
 )
 
 // AsymmetricVerify invokes the kms.AsymmetricVerify API synchronously
+// api document: https://help.aliyun.com/api/kms/asymmetricverify.html
 func (client *Client) AsymmetricVerify(request *AsymmetricVerifyRequest) (response *AsymmetricVerifyResponse, err error) {
 	response = CreateAsymmetricVerifyResponse()
 	err = client.DoAction(request, response)
@@ -28,6 +29,8 @@ func (client *Client) AsymmetricVerify(request *AsymmetricVerifyRequest) (respon
 }
 
 // AsymmetricVerifyWithChan invokes the kms.AsymmetricVerify API asynchronously
+// api document: https://help.aliyun.com/api/kms/asymmetricverify.html
+// asynchronous document: https://help.aliyun.com/document_detail/66220.html
 func (client *Client) AsymmetricVerifyWithChan(request *AsymmetricVerifyRequest) (<-chan *AsymmetricVerifyResponse, <-chan error) {
 	responseChan := make(chan *AsymmetricVerifyResponse, 1)
 	errChan := make(chan error, 1)
@@ -50,6 +53,8 @@ func (client *Client) AsymmetricVerifyWithChan(request *AsymmetricVerifyRequest)
 }
 
 // AsymmetricVerifyWithCallback invokes the kms.AsymmetricVerify API asynchronously
+// api document: https://help.aliyun.com/api/kms/asymmetricverify.html
+// asynchronous document: https://help.aliyun.com/document_detail/66220.html
 func (client *Client) AsymmetricVerifyWithCallback(request *AsymmetricVerifyRequest, callback func(response *AsymmetricVerifyResponse, err error)) <-chan int {
 	result := make(chan int, 1)
 	err := client.AddAsyncTask(func() {
@@ -81,10 +86,10 @@ type AsymmetricVerifyRequest struct {
 // AsymmetricVerifyResponse is the response struct for api AsymmetricVerify
 type AsymmetricVerifyResponse struct {
 	*responses.BaseResponse
-	KeyVersionId string `json:"KeyVersionId" xml:"KeyVersionId"`
-	KeyId        string `json:"KeyId" xml:"KeyId"`
 	Value        bool   `json:"Value" xml:"Value"`
+	KeyId        string `json:"KeyId" xml:"KeyId"`
 	RequestId    string `json:"RequestId" xml:"RequestId"`
+	KeyVersionId string `json:"KeyVersionId" xml:"KeyVersionId"`
 }
 
 // CreateAsymmetricVerifyRequest creates a request to invoke AsymmetricVerify API
@@ -93,7 +98,6 @@ func CreateAsymmetricVerifyRequest() (request *AsymmetricVerifyRequest) {
 		RpcRequest: &requests.RpcRequest{},
 	}
 	request.InitWithApiInfo("Kms", "2016-01-20", "AsymmetricVerify", "kms", "openAPI")
-	request.Method = requests.POST
 	return
 }
 

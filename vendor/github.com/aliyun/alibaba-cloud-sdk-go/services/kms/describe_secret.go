@@ -21,6 +21,7 @@ import (
 )
 
 // DescribeSecret invokes the kms.DescribeSecret API synchronously
+// api document: https://help.aliyun.com/api/kms/describesecret.html
 func (client *Client) DescribeSecret(request *DescribeSecretRequest) (response *DescribeSecretResponse, err error) {
 	response = CreateDescribeSecretResponse()
 	err = client.DoAction(request, response)
@@ -28,6 +29,8 @@ func (client *Client) DescribeSecret(request *DescribeSecretRequest) (response *
 }
 
 // DescribeSecretWithChan invokes the kms.DescribeSecret API asynchronously
+// api document: https://help.aliyun.com/api/kms/describesecret.html
+// asynchronous document: https://help.aliyun.com/document_detail/66220.html
 func (client *Client) DescribeSecretWithChan(request *DescribeSecretRequest) (<-chan *DescribeSecretResponse, <-chan error) {
 	responseChan := make(chan *DescribeSecretResponse, 1)
 	errChan := make(chan error, 1)
@@ -50,6 +53,8 @@ func (client *Client) DescribeSecretWithChan(request *DescribeSecretRequest) (<-
 }
 
 // DescribeSecretWithCallback invokes the kms.DescribeSecret API asynchronously
+// api document: https://help.aliyun.com/api/kms/describesecret.html
+// asynchronous document: https://help.aliyun.com/document_detail/66220.html
 func (client *Client) DescribeSecretWithCallback(request *DescribeSecretRequest, callback func(response *DescribeSecretResponse, err error)) <-chan int {
 	result := make(chan int, 1)
 	err := client.AddAsyncTask(func() {
@@ -78,22 +83,15 @@ type DescribeSecretRequest struct {
 // DescribeSecretResponse is the response struct for api DescribeSecret
 type DescribeSecretResponse struct {
 	*responses.BaseResponse
-	UpdateTime        string               `json:"UpdateTime" xml:"UpdateTime"`
-	CreateTime        string               `json:"CreateTime" xml:"CreateTime"`
-	NextRotationDate  string               `json:"NextRotationDate" xml:"NextRotationDate"`
-	EncryptionKeyId   string               `json:"EncryptionKeyId" xml:"EncryptionKeyId"`
-	RotationInterval  string               `json:"RotationInterval" xml:"RotationInterval"`
-	Arn               string               `json:"Arn" xml:"Arn"`
-	ExtendedConfig    string               `json:"ExtendedConfig" xml:"ExtendedConfig"`
-	LastRotationDate  string               `json:"LastRotationDate" xml:"LastRotationDate"`
-	RequestId         string               `json:"RequestId" xml:"RequestId"`
-	Description       string               `json:"Description" xml:"Description"`
-	SecretName        string               `json:"SecretName" xml:"SecretName"`
-	AutomaticRotation string               `json:"AutomaticRotation" xml:"AutomaticRotation"`
-	SecretType        string               `json:"SecretType" xml:"SecretType"`
-	PlannedDeleteTime string               `json:"PlannedDeleteTime" xml:"PlannedDeleteTime"`
-	DKMSInstanceId    string               `json:"DKMSInstanceId" xml:"DKMSInstanceId"`
-	Tags              TagsInDescribeSecret `json:"Tags" xml:"Tags"`
+	RequestId         string `json:"RequestId" xml:"RequestId"`
+	Arn               string `json:"Arn" xml:"Arn"`
+	SecretName        string `json:"SecretName" xml:"SecretName"`
+	EncryptionKeyId   string `json:"EncryptionKeyId" xml:"EncryptionKeyId"`
+	Description       string `json:"Description" xml:"Description"`
+	CreateTime        string `json:"CreateTime" xml:"CreateTime"`
+	UpdateTime        string `json:"UpdateTime" xml:"UpdateTime"`
+	PlannedDeleteTime string `json:"PlannedDeleteTime" xml:"PlannedDeleteTime"`
+	Tags              []Tag  `json:"Tags" xml:"Tags"`
 }
 
 // CreateDescribeSecretRequest creates a request to invoke DescribeSecret API
@@ -102,7 +100,6 @@ func CreateDescribeSecretRequest() (request *DescribeSecretRequest) {
 		RpcRequest: &requests.RpcRequest{},
 	}
 	request.InitWithApiInfo("Kms", "2016-01-20", "DescribeSecret", "kms", "openAPI")
-	request.Method = requests.POST
 	return
 }
 

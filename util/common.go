@@ -20,18 +20,14 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"math"
-	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"reflect"
-	"runtime"
 	"strconv"
 	"strings"
-	"time"
 
-	"github.com/fagongzi/goetty"
+	"github.com/google/uuid"
 	"github.com/thanos-io/thanos/pkg/errors"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -39,48 +35,43 @@ import (
 )
 
 var (
-	GlobalTimerWheel  *goetty.TimeoutWheel // the global timer wheel
-	GlobalParsingPool *WorkerPool          // for all tasks' parsing, cpu intensive
-	GlobalWritingPool *WorkerPool          // the all tasks' writing ClickHouse, cpu-net balance
-	Logger            *zap.Logger
-	logAtomLevel      zap.AtomicLevel
-	logPaths          []string
+	Logger       *zap.Logger
+	logAtomLevel zap.AtomicLevel
+	logPaths     []string
+	logTrace     bool
 )
 
-// InitGlobalTimerWheel initialize the global timer wheel
-func InitGlobalTimerWheel() {
-	if GlobalTimerWheel != nil {
-		return
-	}
-	GlobalTimerWheel = goetty.NewTimeoutWheel(goetty.WithTickInterval(time.Second))
+type CmdOptions struct {
+	ShowVer  bool
+	LogLevel string // "debug", "info", "warn", "error", "dpanic", "panic", "fatal"
+	LogPaths string // comma-separated paths. "stdout" means the console stdout
+
+	// HTTPHost to bind to. If empty, outbound ip of machine
+	// is automatically determined and used.
+	HTTPHost string
+	HTTPPort int // 0 means a randomly chosen port.
+
+	PushGatewayAddrs string
+	PushInterval     int
+	LocalCfgFile     string
+	NacosAddr        string
+	NacosNamespaceID string
+	NacosGroup       string
+	NacosUsername    string
+	NacosPassword    string
+	NacosDataID      string
+	NacosServiceName string // participate in assignment management if not empty
+
+	Credentials
 }
 
-// InitGlobalParsingPool initialize GlobalParsingPool
-func InitGlobalParsingPool() {
-	if GlobalParsingPool != nil {
-		return
-	}
-	maxWorkers := 10
-	if runtime.NumCPU() >= 2 {
-		if maxWorkers > runtime.NumCPU()/2 {
-			maxWorkers = runtime.NumCPU() / 2
-		}
-	} else {
-		maxWorkers = 1
-	}
-	queueSize := 1 << 16
-	GlobalParsingPool = NewWorkerPool(maxWorkers, queueSize)
-	Logger.Info("initialized parsing pool", zap.Int("maxWorkers", maxWorkers), zap.Int("queueSize", queueSize))
-}
-
-// InitGlobalWritingPool initialize GlobalWritingPool
-func InitGlobalWritingPool(maxWorkers int) {
-	if GlobalWritingPool != nil {
-		return
-	}
-	queueSize := 3
-	GlobalWritingPool = NewWorkerPool(maxWorkers, queueSize)
-	Logger.Info("initialized writing pool", zap.Int("maxWorkers", maxWorkers), zap.Int("queueSize", queueSize))
+type Credentials struct {
+	ClickhouseUsername  string
+	ClickhousePassword  string
+	KafkaUsername       string
+	KafkaPassword       string
+	KafkaGSSAPIUsername string
+	KafkaGSSAPIPassword string
 }
 
 // StringContains check if contains string in array
@@ -94,8 +85,12 @@ func StringContains(arr []string, str string) bool {
 }
 
 // GetSourceName returns the field name in message for the given ClickHouse column
-func GetSourceName(name string) (sourcename string) {
-	sourcename = strings.Replace(name, ".", "\\.", -1)
+func GetSourceName(parser, name string) (sourcename string) {
+	if parser == "gjson" {
+		sourcename = strings.Replace(name, ".", "\\.", -1)
+	} else {
+		sourcename = name
+	}
 	return
 }
 
@@ -104,40 +99,6 @@ func GetShift(s int) (shift uint) {
 	for shift = 0; (1 << shift) < s; shift++ {
 	}
 	return
-}
-
-// GetOutboundIP get preferred outbound ip of this machine
-// https://stackoverflow.com/questions/23558425/how-do-i-get-the-local-ip-address-in-go.
-func GetOutboundIP() (ip net.IP, err error) {
-	var conn net.Conn
-	if conn, err = net.Dial("udp", "8.8.8.8:80"); err != nil {
-		err = errors.Wrapf(err, "")
-		return
-	}
-	defer conn.Close()
-	localAddr, _ := conn.LocalAddr().(*net.UDPAddr)
-	ip = localAddr.IP
-	return
-}
-
-// GetSpareTCPPort finds a spare TCP port.
-func GetSpareTCPPort(portBegin int) int {
-	for port := portBegin; port < math.MaxInt; port++ {
-		if err := testListenOnPort(port); err == nil {
-			return port
-		}
-	}
-	return 0
-}
-
-func testListenOnPort(port int) error {
-	addr := fmt.Sprintf(":%d", port)
-	ln, err := net.Listen("tcp", addr)
-	if err != nil {
-		return err
-	}
-	ln.Close() //nolint:errcheck
-	return nil
 }
 
 // Refers to:
@@ -156,17 +117,19 @@ func NewTLSConfig(caCertFiles, clientCertFile, clientKeyFile string, insecureSki
 		tlsConfig.Certificates = []tls.Certificate{cert}
 	}
 
-	// Load CA cert
-	caCertPool := x509.NewCertPool()
-	for _, caCertFile := range strings.Split(caCertFiles, ",") {
-		caCert, err := os.ReadFile(caCertFile)
-		if err != nil {
-			err = errors.Wrapf(err, "")
-			return &tlsConfig, err
+	// Load CA cert if it exists.  Not needed for OS trusted certs
+	if caCertFiles != "" {
+		caCertPool := x509.NewCertPool()
+		for _, caCertFile := range strings.Split(caCertFiles, ",") {
+			caCert, err := os.ReadFile(caCertFile)
+			if err != nil {
+				err = errors.Wrapf(err, "")
+				return &tlsConfig, err
+			}
+			caCertPool.AppendCertsFromPEM(caCert)
 		}
-		caCertPool.AppendCertsFromPEM(caCert)
+		tlsConfig.RootCAs = caCertPool
 	}
-	tlsConfig.RootCAs = caCertPool
 	tlsConfig.InsecureSkipVerify = insecureSkipVerify
 	return &tlsConfig, nil
 }
@@ -225,7 +188,9 @@ func JksToPem(jksPath, jksPassword string, overwrite bool) (certPemPath, keyPemP
 		{"openssl", "pkcs12", "-in", pkcs12Path, "-nodes", "-nocerts", "-out", keyPemPath, "-passin", "env:password"},
 	}
 	for _, cmd := range cmds {
-		Logger.Info(strings.Join(cmd, " "))
+		if Logger != nil {
+			Logger.Info(strings.Join(cmd, " "))
+		}
 		exe := exec.Command(cmd[0], cmd[1:]...)
 		if cmd[0] == "keytool" {
 			exe.Stdin = bytes.NewReader([]byte(jksPassword + "\n" + jksPassword + "\n" + jksPassword))
@@ -234,7 +199,9 @@ func JksToPem(jksPath, jksPassword string, overwrite bool) (certPemPath, keyPemP
 		}
 		var out []byte
 		out, err = exe.CombinedOutput()
-		Logger.Info(string(out))
+		if Logger != nil {
+			Logger.Info(string(out))
+		}
 		if err != nil {
 			err = errors.Wrapf(err, "")
 			return
@@ -285,4 +252,97 @@ func SetLogLevel(newLogLevel string) {
 		}
 		logAtomLevel.SetLevel(lvl)
 	}
+}
+
+func GenTraceId() string {
+	return uuid.NewString()
+}
+
+const (
+	TraceKindFetchStart   string = "fetch start"
+	TraceKindFetchEnd     string = "fetch end"
+	TraceKindProcessStart string = "process start"
+	TraceKindProcessEnd   string = "process end"
+	TraceKindWriteStart   string = "loopwrite start"
+	TraceKindWriteEnd     string = "loopwrite end"
+	TraceKindProcessing   string = "process continue"
+)
+
+func SetLogTrace(enabled bool) {
+	logTrace = enabled
+}
+
+func LogTrace(traceId string, kind string, fields ...zapcore.Field) {
+	if logTrace {
+		allFields := []zapcore.Field{
+			zap.String("trace_id", traceId),
+			zap.String("trace_kind", kind)}
+		allFields = append(allFields, fields...)
+		Logger.Info("===trace===", allFields...)
+	}
+}
+
+// set v2 to v1, if v1 didn't bind any value
+// FIXME: how about v1 bind default value?
+func TrySetValue(v1, v2 interface{}) bool {
+	var ok bool
+	rt := reflect.TypeOf(v1)
+	rv := reflect.ValueOf(v1)
+
+	if rt.Kind() != reflect.Ptr {
+		return ok
+	}
+	for rt.Kind() == reflect.Ptr {
+		rt = rt.Elem()
+		rv = rv.Elem()
+	}
+
+	if rv.IsValid() && rv.IsZero() {
+		ok = true
+		switch rt.Kind() {
+		case reflect.Uint:
+			v, _ := v2.(uint)
+			rv.SetUint(uint64(v))
+		case reflect.Uint8:
+			v, _ := v2.(uint8)
+			rv.SetUint(uint64(v))
+		case reflect.Uint16:
+			v, _ := v2.(uint16)
+			rv.SetUint(uint64(v))
+		case reflect.Uint32:
+			v, _ := v2.(uint32)
+			rv.SetUint(uint64(v))
+		case reflect.Uint64:
+			v, _ := v2.(uint64)
+			rv.SetUint(uint64(v))
+		case reflect.Int:
+			v, _ := v2.(int)
+			rv.SetInt(int64(v))
+		case reflect.Int8:
+			v, _ := v2.(int8)
+			rv.SetInt(int64(v))
+		case reflect.Int16:
+			v, _ := v2.(int16)
+			rv.SetInt(int64(v))
+		case reflect.Int32:
+			v, _ := v2.(int32)
+			rv.SetInt(int64(v))
+		case reflect.Int64:
+			v, _ := v2.(int64)
+			rv.SetInt(int64(v))
+		case reflect.Float32:
+			v, _ := v2.(float32)
+			rv.SetFloat(float64(v))
+		case reflect.Float64:
+			v, _ := v2.(float64)
+			rv.SetFloat(float64(v))
+		case reflect.String:
+			rv.SetString(v2.(string))
+		case reflect.Bool:
+			rv.SetBool(v2.(bool))
+		default:
+			ok = false
+		}
+	}
+	return ok
 }

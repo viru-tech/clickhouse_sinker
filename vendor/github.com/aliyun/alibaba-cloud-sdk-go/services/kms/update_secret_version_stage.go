@@ -21,6 +21,7 @@ import (
 )
 
 // UpdateSecretVersionStage invokes the kms.UpdateSecretVersionStage API synchronously
+// api document: https://help.aliyun.com/api/kms/updatesecretversionstage.html
 func (client *Client) UpdateSecretVersionStage(request *UpdateSecretVersionStageRequest) (response *UpdateSecretVersionStageResponse, err error) {
 	response = CreateUpdateSecretVersionStageResponse()
 	err = client.DoAction(request, response)
@@ -28,6 +29,8 @@ func (client *Client) UpdateSecretVersionStage(request *UpdateSecretVersionStage
 }
 
 // UpdateSecretVersionStageWithChan invokes the kms.UpdateSecretVersionStage API asynchronously
+// api document: https://help.aliyun.com/api/kms/updatesecretversionstage.html
+// asynchronous document: https://help.aliyun.com/document_detail/66220.html
 func (client *Client) UpdateSecretVersionStageWithChan(request *UpdateSecretVersionStageRequest) (<-chan *UpdateSecretVersionStageResponse, <-chan error) {
 	responseChan := make(chan *UpdateSecretVersionStageResponse, 1)
 	errChan := make(chan error, 1)
@@ -50,6 +53,8 @@ func (client *Client) UpdateSecretVersionStageWithChan(request *UpdateSecretVers
 }
 
 // UpdateSecretVersionStageWithCallback invokes the kms.UpdateSecretVersionStage API asynchronously
+// api document: https://help.aliyun.com/api/kms/updatesecretversionstage.html
+// asynchronous document: https://help.aliyun.com/document_detail/66220.html
 func (client *Client) UpdateSecretVersionStageWithCallback(request *UpdateSecretVersionStageRequest, callback func(response *UpdateSecretVersionStageResponse, err error)) <-chan int {
 	result := make(chan int, 1)
 	err := client.AddAsyncTask(func() {
@@ -90,7 +95,6 @@ func CreateUpdateSecretVersionStageRequest() (request *UpdateSecretVersionStageR
 		RpcRequest: &requests.RpcRequest{},
 	}
 	request.InitWithApiInfo("Kms", "2016-01-20", "UpdateSecretVersionStage", "kms", "openAPI")
-	request.Method = requests.POST
 	return
 }
 

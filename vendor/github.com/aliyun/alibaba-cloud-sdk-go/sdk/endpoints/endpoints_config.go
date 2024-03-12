@@ -1,3 +1,4 @@
+
 package endpoints
 
 import (
@@ -6,7 +7,7 @@ import (
 	"sync"
 )
 
-const endpointsJson = `{
+const endpointsJson =`{
 	"products": [
 		{
 			"code": "emr",
@@ -3617,6 +3618,10 @@ const endpointsJson = `{
 					"endpoint": "metrics.ap-southeast-3.aliyuncs.com"
 				},
 				{
+					"region": "cn-hongkong",
+					"endpoint": "metrics.cn-hangzhou.aliyuncs.com"
+				},
+				{
 					"region": "ap-southeast-5",
 					"endpoint": "metrics.ap-southeast-5.aliyuncs.com"
 				},
@@ -3637,11 +3642,55 @@ const endpointsJson = `{
 					"endpoint": "metrics.cn-huhehaote.aliyuncs.com"
 				},
 				{
+					"region": "cn-shanghai",
+					"endpoint": "metrics.cn-hangzhou.aliyuncs.com"
+				},
+				{
+					"region": "cn-shenzhen",
+					"endpoint": "metrics.cn-hangzhou.aliyuncs.com"
+				},
+				{
+					"region": "ap-southeast-1",
+					"endpoint": "metrics.cn-hangzhou.aliyuncs.com"
+				},
+				{
+					"region": "us-west-1",
+					"endpoint": "metrics.cn-hangzhou.aliyuncs.com"
+				},
+				{
+					"region": "us-east-1",
+					"endpoint": "metrics.cn-hangzhou.aliyuncs.com"
+				},
+				{
 					"region": "ap-northeast-1",
 					"endpoint": "metrics.ap-northeast-1.aliyuncs.com"
+				},
+				{
+					"region": "cn-qingdao",
+					"endpoint": "metrics.cn-hangzhou.aliyuncs.com"
+				},
+				{
+					"region": "cn-beijing",
+					"endpoint": "metrics.cn-hangzhou.aliyuncs.com"
+				},
+				{
+					"region": "cn-zhangjiakou",
+					"endpoint": "metrics.cn-hangzhou.aliyuncs.com"
+				},
+				{
+					"region": "ap-southeast-2",
+					"endpoint": "metrics.cn-hangzhou.aliyuncs.com"
+				},
+				{
+					"region": "eu-central-1",
+					"endpoint": "metrics.cn-hangzhou.aliyuncs.com"
+				},
+				{
+					"region": "me-east-1",
+					"endpoint": "metrics.cn-hangzhou.aliyuncs.com"
 				}
 			],
-			"global_endpoint": "",
+			"global_endpoint": "metrics.cn-hangzhou.aliyuncs.com",
 			"regional_endpoint_pattern": ""
 		},
 		{
@@ -4063,7 +4112,6 @@ const endpointsJson = `{
 		}
 	]
 }`
-
 var initOnce sync.Once
 var data interface{}
 

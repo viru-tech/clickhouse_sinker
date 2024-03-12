@@ -2,6 +2,7 @@ package kadm
 
 import (
 	"context"
+	"errors"
 	"sort"
 
 	"github.com/twmb/franz-go/pkg/kerr"
@@ -42,9 +43,12 @@ func (cl *Client) ListTopicsWithInternal(
 
 // CreateTopicResponse contains the response for an individual created topic.
 type CreateTopicResponse struct {
-	Topic string  // Topic is the topic that was created.
-	ID    TopicID // ID is the topic ID for this topic, if talking to Kafka v2.8+.
-	Err   error   // Err is any error preventing this topic from being created.
+	Topic             string            // Topic is the topic that was created.
+	ID                TopicID           // ID is the topic ID for this topic, if talking to Kafka v2.8+.
+	Err               error             // Err is any error preventing this topic from being created.
+	NumPartitions     int32             // NumPartitions is the number of partitions in the response, if talking to Kafka v2.4+.
+	ReplicationFactor int16             // ReplicationFactor is how many replicas every partition has for this topic, if talking to Kafka 2.4+.
+	Configs           map[string]Config // Configs contains the topic configuration (minus config synonyms), if talking to Kafka 2.4+.
 }
 
 // CreateTopicRepsonses contains per-topic responses for created topics.
@@ -87,10 +91,56 @@ func (rs CreateTopicResponses) On(topic string, fn func(*CreateTopicResponse) er
 	return CreateTopicResponse{}, kerr.UnknownTopicOrPartition
 }
 
+// Error iterates over all responses and returns the first error
+// encountered, if any.
+func (rs CreateTopicResponses) Error() error {
+	for _, r := range rs {
+		if r.Err != nil {
+			return r.Err
+		}
+	}
+	return nil
+}
+
+// CreateTopic issues a create topics request with the given partitions,
+// replication factor, and (optional) configs for the given topic name.
+// This is similar to CreateTopics, but returns the kerr.ErrorForCode(response.ErrorCode)
+// if the request/response is successful.
+func (cl *Client) CreateTopic(
+	ctx context.Context,
+	partitions int32,
+	replicationFactor int16,
+	configs map[string]*string,
+	topic string,
+) (CreateTopicResponse, error) {
+	createTopicResponse, err := cl.CreateTopics(
+		ctx,
+		partitions,
+		replicationFactor,
+		configs,
+		topic,
+	)
+	if err != nil {
+		return CreateTopicResponse{}, err
+	}
+
+	response, exists := createTopicResponse[topic]
+	if !exists {
+		return CreateTopicResponse{}, errors.New("requested topic was not part of create topic response")
+	}
+
+	return response, response.Err
+}
+
 // CreateTopics issues a create topics request with the given partitions,
 // replication factor, and (optional) configs for every topic. Under the hood,
 // this uses the default 15s request timeout and lets Kafka choose where to
 // place partitions.
+//
+// Version 4 of the underlying create topic request was introduced in Kafka 2.4
+// and brought client support for creation defaults. If talking to a 2.4+
+// cluster, you can use -1 for partitions and replicationFactor to use broker
+// defaults.
 //
 // This package includes a StringPtr function to aid in building config values.
 //
@@ -155,20 +205,33 @@ func (cl *Client) createTopics(ctx context.Context, dry bool, p int32, rf int16,
 
 	rs := make(CreateTopicResponses)
 	for _, t := range resp.Topics {
-		rs[t.Topic] = CreateTopicResponse{
-			Topic: t.Topic,
-			ID:    t.TopicID,
-			Err:   kerr.ErrorForCode(t.ErrorCode),
+		rt := CreateTopicResponse{
+			Topic:             t.Topic,
+			ID:                t.TopicID,
+			Err:               kerr.ErrorForCode(t.ErrorCode),
+			NumPartitions:     t.NumPartitions,
+			ReplicationFactor: t.ReplicationFactor,
+			Configs:           make(map[string]Config),
 		}
+		for _, c := range t.Configs {
+			rt.Configs[c.Name] = Config{
+				Key:       c.Name,
+				Value:     c.Value,
+				Source:    kmsg.ConfigSource(c.Source),
+				Sensitive: c.IsSensitive,
+			}
+		}
+		rs[t.Topic] = rt
 	}
 	return rs, nil
 }
 
 // DeleteTopicResponse contains the response for an individual deleted topic.
 type DeleteTopicResponse struct {
-	Topic string  // Topic is the topic that was deleted, if not using topic IDs.
-	ID    TopicID // ID is the topic ID for this topic, if talking to Kafka v2.8+ and using topic IDs.
-	Err   error   // Err is any error preventing this topic from being deleted.
+	Topic      string  // Topic is the topic that was deleted, if not using topic IDs.
+	ID         TopicID // ID is the topic ID for this topic, if talking to Kafka v2.8+ and using topic IDs.
+	Err        error   // Err is any error preventing this topic from being deleted.
+	ErrMessage string  // ErrMessage a potential extra message describing any error.
 }
 
 // DeleteTopicResponses contains per-topic responses for deleted topics.
@@ -211,8 +274,34 @@ func (rs DeleteTopicResponses) On(topic string, fn func(*DeleteTopicResponse) er
 	return DeleteTopicResponse{}, kerr.UnknownTopicOrPartition
 }
 
+// Error iterates over all responses and returns the first error
+// encountered, if any.
+func (rs DeleteTopicResponses) Error() error {
+	for _, r := range rs {
+		if r.Err != nil {
+			return r.Err
+		}
+	}
+	return nil
+}
+
+// DeleteTopic issues a delete topic request for the given topic name with a
+// (by default) 15s timeout. This is similar to DeleteTopics, but returns the
+// kerr.ErrorForCode(response.ErrorCode) if the request/response is successful.
+func (cl *Client) DeleteTopic(ctx context.Context, topic string) (DeleteTopicResponse, error) {
+	rs, err := cl.DeleteTopics(ctx, topic)
+	if err != nil {
+		return DeleteTopicResponse{}, err
+	}
+	r, exists := rs[topic]
+	if !exists {
+		return DeleteTopicResponse{}, errors.New("requested topic was not part of delete topic response")
+	}
+	return r, r.Err
+}
+
 // DeleteTopics issues a delete topics request for the given topic names with a
-// 15s timeout.
+// (by default) 15s timeout.
 //
 // This does not return an error on authorization failures, instead,
 // authorization failures are included in the responses. This only returns an
@@ -246,9 +335,10 @@ func (cl *Client) DeleteTopics(ctx context.Context, topics ...string) (DeleteTop
 			topic = *t.Topic
 		}
 		rs[topic] = DeleteTopicResponse{
-			Topic: topic,
-			ID:    t.TopicID,
-			Err:   kerr.ErrorForCode(t.ErrorCode),
+			Topic:      topic,
+			ID:         t.TopicID,
+			Err:        kerr.ErrorForCode(t.ErrorCode),
+			ErrMessage: unptrStr(t.ErrorMessage),
 		}
 	}
 	return rs, nil
@@ -335,6 +425,19 @@ func (rs DeleteRecordsResponses) On(topic string, partition int32, fn func(*Dele
 	return DeleteRecordsResponse{}, kerr.UnknownTopicOrPartition
 }
 
+// Error iterates over all responses and returns the first error
+// encountered, if any.
+func (rs DeleteRecordsResponses) Error() error {
+	for _, ps := range rs {
+		for _, r := range ps {
+			if r.Err != nil {
+				return r.Err
+			}
+		}
+	}
+	return nil
+}
+
 // DeleteRecords issues a delete records request for the given offsets. Per
 // offset, only the Offset field needs to be set.
 //
@@ -361,7 +464,9 @@ func (cl *Client) DeleteRecords(ctx context.Context, os Offsets) (DeleteRecordsR
 			rp := kmsg.NewDeleteRecordsRequestTopicPartition()
 			rp.Partition = p
 			rp.Offset = o.At
+			rt.Partitions = append(rt.Partitions, rp)
 		}
+		req.Topics = append(req.Topics, rt)
 	}
 
 	shards := cl.cl.RequestSharded(ctx, req)
@@ -369,8 +474,11 @@ func (cl *Client) DeleteRecords(ctx context.Context, os Offsets) (DeleteRecordsR
 	return rs, shardErrEach(req, shards, func(kr kmsg.Response) error {
 		resp := kr.(*kmsg.DeleteRecordsResponse)
 		for _, t := range resp.Topics {
-			rt := make(map[int32]DeleteRecordsResponse)
-			rs[t.Topic] = rt
+			rt, exists := rs[t.Topic]
+			if !exists { // topic could be spread around brokers, we need to check existence
+				rt = make(map[int32]DeleteRecordsResponse)
+				rs[t.Topic] = rt
+			}
 			for _, p := range t.Partitions {
 				rt[p.Partition] = DeleteRecordsResponse{
 					Topic:        t.Topic,
@@ -387,8 +495,9 @@ func (cl *Client) DeleteRecords(ctx context.Context, os Offsets) (DeleteRecordsR
 // CreatePartitionsResponse contains the response for an individual topic from
 // a create partitions request.
 type CreatePartitionsResponse struct {
-	Topic string // Topic is the topic this response is for.
-	Err   error  // Err is non-nil if partitions were unable to be added to this topic.
+	Topic      string // Topic is the topic this response is for.
+	Err        error  // Err is non-nil if partitions were unable to be added to this topic.
+	ErrMessage string // ErrMessage a potential extra message describing any error.
 }
 
 // CreatePartitionsResponses contains per-topic responses for a create
@@ -423,6 +532,17 @@ func (rs CreatePartitionsResponses) On(topic string, fn func(*CreatePartitionsRe
 		}
 	}
 	return CreatePartitionsResponse{}, kerr.UnknownTopicOrPartition
+}
+
+// Error iterates over all responses and returns the first error
+// encountered, if any.
+func (rs CreatePartitionsResponses) Error() error {
+	for _, r := range rs {
+		if r.Err != nil {
+			return r.Err
+		}
+	}
+	return nil
 }
 
 // CreatePartitions issues a create partitions request for the given topics,
@@ -514,8 +634,9 @@ func (cl *Client) createPartitions(ctx context.Context, dry bool, add, set int, 
 	rs := make(CreatePartitionsResponses)
 	for _, t := range resp.Topics {
 		rs[t.Topic] = CreatePartitionsResponse{
-			Topic: t.Topic,
-			Err:   kerr.ErrorForCode(t.ErrorCode),
+			Topic:      t.Topic,
+			Err:        kerr.ErrorForCode(t.ErrorCode),
+			ErrMessage: unptrStr(t.ErrorMessage),
 		}
 	}
 	return rs, nil

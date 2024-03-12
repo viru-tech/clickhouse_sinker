@@ -21,6 +21,7 @@ import (
 )
 
 // DeleteSecret invokes the kms.DeleteSecret API synchronously
+// api document: https://help.aliyun.com/api/kms/deletesecret.html
 func (client *Client) DeleteSecret(request *DeleteSecretRequest) (response *DeleteSecretResponse, err error) {
 	response = CreateDeleteSecretResponse()
 	err = client.DoAction(request, response)
@@ -28,6 +29,8 @@ func (client *Client) DeleteSecret(request *DeleteSecretRequest) (response *Dele
 }
 
 // DeleteSecretWithChan invokes the kms.DeleteSecret API asynchronously
+// api document: https://help.aliyun.com/api/kms/deletesecret.html
+// asynchronous document: https://help.aliyun.com/document_detail/66220.html
 func (client *Client) DeleteSecretWithChan(request *DeleteSecretRequest) (<-chan *DeleteSecretResponse, <-chan error) {
 	responseChan := make(chan *DeleteSecretResponse, 1)
 	errChan := make(chan error, 1)
@@ -50,6 +53,8 @@ func (client *Client) DeleteSecretWithChan(request *DeleteSecretRequest) (<-chan
 }
 
 // DeleteSecretWithCallback invokes the kms.DeleteSecret API asynchronously
+// api document: https://help.aliyun.com/api/kms/deletesecret.html
+// asynchronous document: https://help.aliyun.com/document_detail/66220.html
 func (client *Client) DeleteSecretWithCallback(request *DeleteSecretRequest, callback func(response *DeleteSecretResponse, err error)) <-chan int {
 	result := make(chan int, 1)
 	err := client.AddAsyncTask(func() {
@@ -79,8 +84,8 @@ type DeleteSecretRequest struct {
 // DeleteSecretResponse is the response struct for api DeleteSecret
 type DeleteSecretResponse struct {
 	*responses.BaseResponse
-	SecretName        string `json:"SecretName" xml:"SecretName"`
 	RequestId         string `json:"RequestId" xml:"RequestId"`
+	SecretName        string `json:"SecretName" xml:"SecretName"`
 	PlannedDeleteTime string `json:"PlannedDeleteTime" xml:"PlannedDeleteTime"`
 }
 
@@ -90,7 +95,6 @@ func CreateDeleteSecretRequest() (request *DeleteSecretRequest) {
 		RpcRequest: &requests.RpcRequest{},
 	}
 	request.InitWithApiInfo("Kms", "2016-01-20", "DeleteSecret", "kms", "openAPI")
-	request.Method = requests.POST
 	return
 }
 

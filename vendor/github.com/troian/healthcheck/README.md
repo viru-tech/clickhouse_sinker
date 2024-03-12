@@ -1,7 +1,7 @@
 # healthcheck
-[![Build Status](https://travis-ci.com/troian/healthcheck.svg?branch=master)](https://travis-ci.com/troian/healthcheck)
-[![Go Report Card](https://goreportcard.com/badge/github.com/troian/healthcheck)](https://goreportcard.com/report/github.com/troian/healthcheck)
-[![GoDoc](https://godoc.org/github.com/troian/healthcheck?status.svg)](https://godoc.org/github.com/troian/healthcheck)
+[![Build Status](https://travis-ci.org/heptiolabs/healthcheck.svg?branch=master)](https://travis-ci.org/heptiolabs/healthcheck)
+[![Go Report Card](https://goreportcard.com/badge/github.com/heptiolabs/healthcheck)](https://goreportcard.com/report/github.com/heptiolabs/healthcheck)
+[![GoDoc](https://godoc.org/github.com/heptiolabs/healthcheck?status.svg)](https://godoc.org/github.com/heptiolabs/healthcheck)
 
 Healthcheck is a library for implementing Kubernetes [liveness and readiness](https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-probes/) probe handlers in your Go application.
 
@@ -17,11 +17,11 @@ Healthcheck is a library for implementing Kubernetes [liveness and readiness](ht
 
 ## Usage
 
-See the [GoDoc examples](https://godoc.org/github.com/troian/healthcheck) for more detail.
+See the [GoDoc examples](https://godoc.org/github.com/heptiolabs/healthcheck) for more detail.
 
- - Install with `go get` or your favorite Go dependency manager: `go get -u github.com/troian/healthcheck`
+ - Install with `go get` or your favorite Go dependency manager: `go get -u github.com/heptiolabs/healthcheck`
 
- - Import the package: `import "github.com/troian/healthcheck"`
+ - Import the package: `import "github.com/heptiolabs/healthcheck"`
 
  - Create a `healthcheck.Handler`:
    ```go

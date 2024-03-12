@@ -21,6 +21,7 @@ import (
 )
 
 // GetSecretValue invokes the kms.GetSecretValue API synchronously
+// api document: https://help.aliyun.com/api/kms/getsecretvalue.html
 func (client *Client) GetSecretValue(request *GetSecretValueRequest) (response *GetSecretValueResponse, err error) {
 	response = CreateGetSecretValueResponse()
 	err = client.DoAction(request, response)
@@ -28,6 +29,8 @@ func (client *Client) GetSecretValue(request *GetSecretValueRequest) (response *
 }
 
 // GetSecretValueWithChan invokes the kms.GetSecretValue API asynchronously
+// api document: https://help.aliyun.com/api/kms/getsecretvalue.html
+// asynchronous document: https://help.aliyun.com/document_detail/66220.html
 func (client *Client) GetSecretValueWithChan(request *GetSecretValueRequest) (<-chan *GetSecretValueResponse, <-chan error) {
 	responseChan := make(chan *GetSecretValueResponse, 1)
 	errChan := make(chan error, 1)
@@ -50,6 +53,8 @@ func (client *Client) GetSecretValueWithChan(request *GetSecretValueRequest) (<-
 }
 
 // GetSecretValueWithCallback invokes the kms.GetSecretValue API asynchronously
+// api document: https://help.aliyun.com/api/kms/getsecretvalue.html
+// asynchronous document: https://help.aliyun.com/document_detail/66220.html
 func (client *Client) GetSecretValueWithCallback(request *GetSecretValueRequest, callback func(response *GetSecretValueResponse, err error)) <-chan int {
 	result := make(chan int, 1)
 	err := client.AddAsyncTask(func() {
@@ -71,28 +76,21 @@ func (client *Client) GetSecretValueWithCallback(request *GetSecretValueRequest,
 // GetSecretValueRequest is the request struct for api GetSecretValue
 type GetSecretValueRequest struct {
 	*requests.RpcRequest
-	VersionId           string           `position:"Query" name:"VersionId"`
-	VersionStage        string           `position:"Query" name:"VersionStage"`
-	SecretName          string           `position:"Query" name:"SecretName"`
-	FetchExtendedConfig requests.Boolean `position:"Query" name:"FetchExtendedConfig"`
+	VersionId    string `position:"Query" name:"VersionId"`
+	VersionStage string `position:"Query" name:"VersionStage"`
+	SecretName   string `position:"Query" name:"SecretName"`
 }
 
 // GetSecretValueResponse is the response struct for api GetSecretValue
 type GetSecretValueResponse struct {
 	*responses.BaseResponse
-	SecretDataType    string                        `json:"SecretDataType" xml:"SecretDataType"`
-	CreateTime        string                        `json:"CreateTime" xml:"CreateTime"`
-	VersionId         string                        `json:"VersionId" xml:"VersionId"`
-	NextRotationDate  string                        `json:"NextRotationDate" xml:"NextRotationDate"`
-	SecretData        string                        `json:"SecretData" xml:"SecretData"`
-	RotationInterval  string                        `json:"RotationInterval" xml:"RotationInterval"`
-	ExtendedConfig    string                        `json:"ExtendedConfig" xml:"ExtendedConfig"`
-	LastRotationDate  string                        `json:"LastRotationDate" xml:"LastRotationDate"`
-	RequestId         string                        `json:"RequestId" xml:"RequestId"`
-	SecretName        string                        `json:"SecretName" xml:"SecretName"`
-	AutomaticRotation string                        `json:"AutomaticRotation" xml:"AutomaticRotation"`
-	SecretType        string                        `json:"SecretType" xml:"SecretType"`
-	VersionStages     VersionStagesInGetSecretValue `json:"VersionStages" xml:"VersionStages"`
+	RequestId      string   `json:"RequestId" xml:"RequestId"`
+	SecretName     string   `json:"SecretName" xml:"SecretName"`
+	VersionId      string   `json:"VersionId" xml:"VersionId"`
+	CreateTime     string   `json:"CreateTime" xml:"CreateTime"`
+	SecretData     string   `json:"SecretData" xml:"SecretData"`
+	SecretDataType string   `json:"SecretDataType" xml:"SecretDataType"`
+	VersionStages  []string `json:"VersionStages" xml:"VersionStages"`
 }
 
 // CreateGetSecretValueRequest creates a request to invoke GetSecretValue API
@@ -101,7 +99,6 @@ func CreateGetSecretValueRequest() (request *GetSecretValueRequest) {
 		RpcRequest: &requests.RpcRequest{},
 	}
 	request.InitWithApiInfo("Kms", "2016-01-20", "GetSecretValue", "kms", "openAPI")
-	request.Method = requests.POST
 	return
 }
 

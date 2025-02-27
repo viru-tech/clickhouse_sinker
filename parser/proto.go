@@ -1,8 +1,12 @@
 package parser
 
 import (
+	"context"
 	"encoding/binary"
 	"fmt"
+	"github.com/bufbuild/protocompile"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/dynamicpb"
 	"io"
 	"math"
 	"net"
@@ -14,12 +18,10 @@ import (
 
 	"github.com/confluentinc/confluent-kafka-go/schemaregistry"
 	"github.com/confluentinc/confluent-kafka-go/schemaregistry/serde"
-	"github.com/jhump/protoreflect/desc"            //nolint:staticcheck
-	"github.com/jhump/protoreflect/desc/protoparse" //nolint:staticcheck
-	"github.com/jhump/protoreflect/dynamic"         //nolint:staticcheck
 	"github.com/shopspring/decimal"
 	"github.com/thanos-io/thanos/pkg/errors"
 	"golang.org/x/exp/constraints"
+	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/viru-tech/clickhouse_sinker/model"
@@ -47,119 +49,193 @@ func (p *ProtoParser) Parse(bs []byte) (model.Metric, error) {
 
 type ProtoMetric struct {
 	pp  *Pool
-	msg *dynamic.Message
+	msg protoreflect.Message
 }
 
 func (m *ProtoMetric) GetBool(key string, nullable bool) interface{} {
-	value, _ := m.msg.TryGetFieldByName(key)
-	if value == nil {
+	field := m.msg.Descriptor().Fields().ByName(protoreflect.Name(key))
+	if field == nil {
 		return getDefaultBool(nullable)
 	}
 
+	value := m.msg.Get(field).Interface()
 	return getBool(reflect.ValueOf(value), nullable)
 }
 
 func (m *ProtoMetric) GetInt8(key string, nullable bool) interface{} {
-	value, _ := m.msg.TryGetFieldByName(key)
+	field := m.msg.Descriptor().Fields().ByName(protoreflect.Name(key))
+	if field == nil {
+		if nullable {
+			return nil
+		}
+		return int8(0)
+	}
+
+	value := m.msg.Get(field).Interface()
 	return getIntFromProto[int8](value, nullable, math.MinInt8, math.MaxInt8)
 }
 
 func (m *ProtoMetric) GetInt16(key string, nullable bool) interface{} {
-	value, _ := m.msg.TryGetFieldByName(key)
+	field := m.msg.Descriptor().Fields().ByName(protoreflect.Name(key))
+	if field == nil {
+		if nullable {
+			return nil
+		}
+		return int16(0)
+	}
+
+	value := m.msg.Get(field).Interface()
 	return getIntFromProto[int16](value, nullable, math.MinInt16, math.MaxInt16)
 }
 
 func (m *ProtoMetric) GetInt32(key string, nullable bool) interface{} {
-	value, _ := m.msg.TryGetFieldByName(key)
+	field := m.msg.Descriptor().Fields().ByName(protoreflect.Name(key))
+	if field == nil {
+		if nullable {
+			return nil
+		}
+		return int32(0)
+	}
+
+	value := m.msg.Get(field).Interface()
 	return getIntFromProto[int32](value, nullable, math.MinInt32, math.MaxInt32)
 }
 
 func (m *ProtoMetric) GetInt64(key string, nullable bool) interface{} {
-	value, _ := m.msg.TryGetFieldByName(key)
+	field := m.msg.Descriptor().Fields().ByName(protoreflect.Name(key))
+	if field == nil {
+		if nullable {
+			return nil
+		}
+		return int64(0)
+	}
+
+	value := m.msg.Get(field).Interface()
 	return getIntFromProto[int64](value, nullable, math.MinInt64, math.MaxInt64)
 }
 
 func (m *ProtoMetric) GetUint8(key string, nullable bool) interface{} {
-	value, _ := m.msg.TryGetFieldByName(key)
+	field := m.msg.Descriptor().Fields().ByName(protoreflect.Name(key))
+	if field == nil {
+		if nullable {
+			return nil
+		}
+		return uint8(0)
+	}
+
+	value := m.msg.Get(field).Interface()
 	return getUIntFromProto[uint8](value, nullable, math.MaxUint8)
 }
 
 func (m *ProtoMetric) GetUint16(key string, nullable bool) interface{} {
-	value, _ := m.msg.TryGetFieldByName(key)
+	field := m.msg.Descriptor().Fields().ByName(protoreflect.Name(key))
+	if field == nil {
+		if nullable {
+			return nil
+		}
+		return uint16(0)
+	}
+
+	value := m.msg.Get(field).Interface()
 	return getUIntFromProto[uint16](value, nullable, math.MaxUint16)
 }
 
 func (m *ProtoMetric) GetUint32(key string, nullable bool) interface{} {
-	value, _ := m.msg.TryGetFieldByName(key)
+	field := m.msg.Descriptor().Fields().ByName(protoreflect.Name(key))
+	if field == nil {
+		if nullable {
+			return nil
+		}
+		return uint32(0)
+	}
+
+	value := m.msg.Get(field).Interface()
 	return getUIntFromProto[uint32](value, nullable, math.MaxUint32)
 }
 
 func (m *ProtoMetric) GetUint64(key string, nullable bool) interface{} {
-	value, _ := m.msg.TryGetFieldByName(key)
+	field := m.msg.Descriptor().Fields().ByName(protoreflect.Name(key))
+	if field == nil {
+		if nullable {
+			return nil
+		}
+		return uint64(0)
+	}
+
+	value := m.msg.Get(field).Interface()
 	return getUIntFromProto[uint64](value, nullable, math.MaxUint64)
 }
 
 func (m *ProtoMetric) GetFloat32(key string, nullable bool) interface{} {
-	value, _ := m.msg.TryGetFieldByName(key)
+	field := m.msg.Descriptor().Fields().ByName(protoreflect.Name(key))
+	if field == nil {
+		if nullable {
+			return nil
+		}
+		return float32(0)
+	}
+
+	value := m.msg.Get(field).Interface()
 	return getFloatFromProto[float32](value, nullable, math.MaxFloat32)
 }
 
 func (m *ProtoMetric) GetFloat64(key string, nullable bool) interface{} {
-	value, _ := m.msg.TryGetFieldByName(key)
+	field := m.msg.Descriptor().Fields().ByName(protoreflect.Name(key))
+	if field == nil {
+		if nullable {
+			return nil
+		}
+		return float64(0)
+	}
+
+	value := m.msg.Get(field).Interface()
 	return getFloatFromProto[float64](value, nullable, math.MaxFloat64)
 }
 
 func (m *ProtoMetric) GetDecimal(key string, nullable bool) interface{} {
-	value, _ := m.msg.TryGetFieldByName(key)
-	if value == nil {
+	field := m.msg.Descriptor().Fields().ByName(protoreflect.Name(key))
+	if field == nil {
 		return getDefaultDecimal(nullable)
 	}
 
-	rv := reflect.ValueOf(value)
+	rv := reflect.ValueOf(m.msg.Get(field).Interface())
 	return getDecimal(rv, nullable)
 }
 
 func (m *ProtoMetric) GetDateTime(key string, nullable bool) interface{} {
-	value, _ := m.msg.TryGetFieldByName(key)
-	if value == nil {
+	field := m.msg.Descriptor().Fields().ByName(protoreflect.Name(key))
+	if field == nil {
 		return getDefaultDateTime(nullable)
 	}
 
-	rv := reflect.ValueOf(value)
-	if ts, ok := rv.Interface().(*timestamppb.Timestamp); ok {
-		return ts.AsTime()
-	}
-	if rv.Kind() == reflect.String {
-		val, err := m.pp.ParseDateTime(key, value.(string))
-		if err != nil {
-			return getDefaultDateTime(nullable)
-		}
-		return val
-	}
-
-	return getDefaultDateTime(nullable)
+	return getDateTime(m.msg.Get(field), nullable)
 }
 
 func (m *ProtoMetric) GetString(key string, nullable bool) interface{} {
-	value, _ := m.msg.TryGetFieldByName(key)
-	if value == nil {
+	field := m.msg.Descriptor().Fields().ByName(protoreflect.Name(key))
+	if field == nil {
 		if nullable {
 			return nil
 		}
 		return ""
 	}
 
-	return getString(reflect.ValueOf(value))
+	value := m.getValueOrList(field)
+
+	val := reflect.ValueOf(value)
+	return getString(val)
 }
 
 func (m *ProtoMetric) GetUUID(key string, nullable bool) interface{} {
-	value, _ := m.msg.TryGetFieldByName(key)
-	if value == nil {
+	field := m.msg.Descriptor().Fields().ByName(protoreflect.Name(key))
+	if field == nil {
 		if nullable {
 			return nil
 		}
 		return zeroUUID
 	}
+
+	value := m.getValueOrList(field)
 
 	if v := getString(reflect.ValueOf(value)); v != "" {
 		return v
@@ -176,13 +252,15 @@ func (m *ProtoMetric) GetMap(key string, typeInfo *model.TypeInfo) interface{} {
 }
 
 func (m *ProtoMetric) GetIPv4(key string, nullable bool) interface{} {
-	value, _ := m.msg.TryGetFieldByName(key)
-	if value == nil {
+	field := m.msg.Descriptor().Fields().ByName(protoreflect.Name(key))
+	if field == nil {
 		if nullable {
 			return nil
 		}
 		return net.IPv4zero.String()
 	}
+
+	value := m.getValueOrList(field)
 
 	if v := getString(reflect.ValueOf(value)); v != "" {
 		return v
@@ -191,13 +269,15 @@ func (m *ProtoMetric) GetIPv4(key string, nullable bool) interface{} {
 }
 
 func (m *ProtoMetric) GetIPv6(key string, nullable bool) interface{} {
-	value, _ := m.msg.TryGetFieldByName(key)
-	if value == nil {
+	field := m.msg.Descriptor().Fields().ByName(protoreflect.Name(key))
+	if field == nil {
 		if nullable {
 			return nil
 		}
 		return net.IPv6zero.String()
 	}
+
+	value := m.getValueOrList(field)
 
 	if v := getString(reflect.ValueOf(value)); v != "" {
 		return v
@@ -206,7 +286,7 @@ func (m *ProtoMetric) GetIPv6(key string, nullable bool) interface{} {
 }
 
 func (m *ProtoMetric) GetArray(key string, t int) interface{} {
-	value, _ := m.msg.TryGetFieldByName(key)
+	value := m.msg.Get(m.msg.Descriptor().Fields().ByName(protoreflect.Name(key))).List()
 	if value == nil {
 		return nil
 	}
@@ -214,9 +294,8 @@ func (m *ProtoMetric) GetArray(key string, t int) interface{} {
 	switch t {
 	case model.Bool:
 		arr := make([]bool, 0)
-		rv := reflect.ValueOf(value)
-		for i := 0; i < rv.Len(); i++ {
-			item := getBool(reflect.ValueOf(rv.Index(i).Interface()), false).(bool)
+		for i := 0; i < value.Len(); i++ {
+			item := getBool(reflect.ValueOf(value.Get(i).Interface()), false).(bool)
 			arr = append(arr, item)
 		}
 		return arr
@@ -242,25 +321,22 @@ func (m *ProtoMetric) GetArray(key string, t int) interface{} {
 		return getFloatSliceFromProto[float64](value, math.MaxFloat64)
 	case model.Decimal:
 		arr := make([]decimal.Decimal, 0)
-		rv := reflect.ValueOf(value)
-		for i := 0; i < rv.Len(); i++ {
-			item := getDecimal(reflect.ValueOf(rv.Index(i).Interface()), false).(decimal.Decimal)
+		for i := 0; i < value.Len(); i++ {
+			item := getDecimal(reflect.ValueOf(value.Get(i).Interface()), false).(decimal.Decimal)
 			arr = append(arr, item)
 		}
 		return arr
 	case model.String:
 		arr := make([]string, 0)
-		rv := reflect.ValueOf(value)
-		for i := 0; i < rv.Len(); i++ {
-			item := getString(reflect.ValueOf(rv.Index(i).Interface()))
+		for i := 0; i < value.Len(); i++ {
+			item := getString(reflect.ValueOf(value.Get(i).Interface()))
 			arr = append(arr, item)
 		}
 		return arr
 	case model.UUID:
 		arr := make([]string, 0)
-		rv := reflect.ValueOf(value)
-		for i := 0; i < rv.Len(); i++ {
-			item := getString(reflect.ValueOf(rv.Index(i).Interface()))
+		for i := 0; i < value.Len(); i++ {
+			item := getString(reflect.ValueOf(value.Get(i).Interface()))
 			if item == "" {
 				item = zeroUUID
 			}
@@ -269,9 +345,8 @@ func (m *ProtoMetric) GetArray(key string, t int) interface{} {
 		return arr
 	case model.DateTime:
 		arr := make([]time.Time, 0)
-		rv := reflect.ValueOf(value)
-		for i := 0; i < rv.Len(); i++ {
-			item := getDateTime(reflect.ValueOf(rv.Index(i).Interface()), false).(time.Time)
+		for i := 0; i < value.Len(); i++ {
+			item := getDateTime(value.Get(i), false).(time.Time)
 			arr = append(arr, item)
 		}
 		return arr
@@ -287,11 +362,25 @@ func (m *ProtoMetric) GetNewKeys(knownKeys, newKeys, warnKeys *sync.Map, white, 
 	return false
 }
 
-func getIntSliceFromProto[T constraints.Signed](fieldVal interface{}, min, max int64) []T {
+func (m *ProtoMetric) getValueOrList(field protoreflect.FieldDescriptor) any {
+	if !field.IsList() {
+		return m.msg.Get(field).Interface()
+	}
+
+	list := m.msg.Get(field).List()
+	valuelist := make([]any, 0)
+	for i := 0; i < list.Len(); i++ {
+		item := list.Get(i).Interface()
+		valuelist = append(valuelist, item)
+	}
+
+	return valuelist
+}
+
+func getIntSliceFromProto[T constraints.Signed](fieldVal protoreflect.List, min, max int64) []T {
 	arr := make([]T, 0)
-	rv := reflect.ValueOf(fieldVal)
-	for i := 0; i < rv.Len(); i++ {
-		item := getIntFromProto[T](rv.Index(i).Interface(), false, min, max)
+	for i := 0; i < fieldVal.Len(); i++ {
+		item := getIntFromProto[T](fieldVal.Get(i).Interface(), false, min, max)
 		arr = append(arr, item.(T))
 	}
 
@@ -330,11 +419,10 @@ func getIntFromProto[T constraints.Signed](fieldVal interface{}, nullable bool, 
 	}
 }
 
-func getUIntSliceFromProto[T constraints.Unsigned](fieldVal interface{}, max uint64) []T {
+func getUIntSliceFromProto[T constraints.Unsigned](fieldVal protoreflect.List, max uint64) []T {
 	arr := make([]T, 0)
-	rv := reflect.ValueOf(fieldVal)
-	for i := 0; i < rv.Len(); i++ {
-		item := getUIntFromProto[T](rv.Index(i).Interface(), false, max)
+	for i := 0; i < fieldVal.Len(); i++ {
+		item := getUIntFromProto[T](fieldVal.Get(i).Interface(), false, max)
 		arr = append(arr, item.(T))
 	}
 
@@ -373,11 +461,10 @@ func getUIntFromProto[T constraints.Unsigned](fieldVal interface{}, nullable boo
 	}
 }
 
-func getFloatSliceFromProto[T constraints.Float](fieldVal interface{}, max float64) interface{} {
+func getFloatSliceFromProto[T constraints.Float](fieldVal protoreflect.List, max float64) interface{} {
 	arr := make([]T, 0)
-	rv := reflect.ValueOf(fieldVal)
-	for i := 0; i < rv.Len(); i++ {
-		item := getFloatFromProto[T](rv.Index(i).Interface(), false, max)
+	for i := 0; i < fieldVal.Len(); i++ {
+		item := getFloatFromProto[T](fieldVal.Get(i).Interface(), false, max)
 		arr = append(arr, item.(T))
 	}
 
@@ -414,11 +501,27 @@ func getDecimal(value reflect.Value, nullable bool) interface{} {
 	return getDefaultDecimal(nullable)
 }
 
-func getDateTime(value reflect.Value, nullable bool) interface{} {
-	if ts, ok := value.Interface().(*timestamppb.Timestamp); ok {
-		return ts.AsTime()
+func getDateTime(value protoreflect.Value, nullable bool) interface{} {
+	timestampField, ok := value.Interface().(*dynamicpb.Message)
+	if !ok {
+		return getDefaultDateTime(nullable)
 	}
-	return getDefaultDateTime(nullable)
+
+	secondsField := timestampField.ProtoReflect().Descriptor().Fields().ByName("seconds")
+	nanosField := timestampField.ProtoReflect().Descriptor().Fields().ByName("nanos")
+	if secondsField == nil || nanosField == nil {
+		return getDefaultDateTime(nullable)
+	}
+
+	seconds := timestampField.ProtoReflect().Get(secondsField)
+	nanos := timestampField.ProtoReflect().Get(nanosField)
+
+	timestamp := &timestamppb.Timestamp{
+		Seconds: seconds.Int(),
+		Nanos:   int32(nanos.Int()),
+	}
+
+	return timestamp.AsTime()
 }
 
 func getString(value reflect.Value) string {
@@ -436,7 +539,7 @@ type ProtoDeserializer struct {
 	topic            string
 }
 
-func (p *ProtoDeserializer) ToDynamicMessage(bytes []byte) (*dynamic.Message, error) {
+func (p *ProtoDeserializer) ToDynamicMessage(bytes []byte) (protoreflect.Message, error) {
 	if len(bytes) == 0 {
 		return nil, nil
 	}
@@ -477,44 +580,49 @@ func (p *ProtoDeserializer) ToDynamicMessage(bytes []byte) (*dynamic.Message, er
 		return nil, err
 	}
 
-	msg := dynamic.NewMessage(messageDesc)
-	if err := msg.Unmarshal(bytes[5+bytesRead:]); err != nil {
+	msg := dynamicpb.NewMessage(messageDesc)
+	if err := proto.Unmarshal(bytes[5+bytesRead:], msg); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal value into protobuf message: %w", err)
 	}
 
 	return msg, nil
 }
 
-func (p *ProtoDeserializer) toFileDescriptor(info schemaregistry.SchemaInfo) (*desc.FileDescriptor, error) {
+func (p *ProtoDeserializer) toFileDescriptor(info schemaregistry.SchemaInfo) (protoreflect.FileDescriptor, error) {
+	// Resolve dependencies
 	deps := make(map[string]string)
 	err := serde.ResolveReferences(p.schemaRegistry, info, deps)
 	if err != nil {
 		return nil, err
 	}
-	parser := protoparse.Parser{
-		Accessor: func(filename string) (io.ReadCloser, error) {
-			var schema string
-			if filename == "." {
-				schema = info.Schema
-			} else {
-				schema = deps[filename]
-			}
-			if schema == "" {
-				// these may be google types
-				return nil, errors.Newf("unknown reference")
-			}
-			return io.NopCloser(strings.NewReader(schema)), nil
-		},
+
+	compiler := protocompile.Compiler{
+		Resolver: protocompile.WithStandardImports(&protocompile.SourceResolver{
+			Accessor: func(filename string) (io.ReadCloser, error) {
+				var schema string
+				if filename == "." {
+					schema = info.Schema
+				} else {
+					schema = deps[filename]
+				}
+				if schema == "" {
+					return nil, fmt.Errorf("unknown reference: %s", filename)
+				}
+				return io.NopCloser(strings.NewReader(schema)), nil
+			},
+		}),
 	}
 
-	fileDescriptors, err := parser.ParseFiles(".")
+	// Compile the .proto file
+	fileDescriptors, err := compiler.Compile(context.Background(), ".")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to compile proto: %v", err)
 	}
 
 	if len(fileDescriptors) != 1 {
 		return nil, fmt.Errorf("could not resolve schema")
 	}
+
 	return fileDescriptors[0], nil
 }
 
@@ -546,23 +654,25 @@ func readMessageIndexes(bytes []byte) (int, []int, error) {
 	return bytesRead, msgIndexes, nil
 }
 
-func toMessageDescriptor(descriptor desc.Descriptor, msgIndexes []int) (*desc.MessageDescriptor, error) {
+func toMessageDescriptor(descriptor protoreflect.Descriptor, msgIndexes []int) (protoreflect.MessageDescriptor, error) {
 	index := msgIndexes[0]
+	if fileDesc, ok := descriptor.(protoreflect.FileDescriptor); ok {
+		if len(msgIndexes) == 1 {
+			return fileDesc.Messages().Get(index), nil
+		}
 
-	switch v := descriptor.(type) {
-	case *desc.FileDescriptor:
-		if len(msgIndexes) == 1 {
-			return v.GetMessageTypes()[index], nil
-		}
-		return toMessageDescriptor(v.GetMessageTypes()[index], msgIndexes[1:])
-	case *desc.MessageDescriptor:
-		if len(msgIndexes) == 1 {
-			return v.GetNestedMessageTypes()[index], nil
-		}
-		return toMessageDescriptor(v.GetNestedMessageTypes()[index], msgIndexes[1:])
-	default:
-		return nil, fmt.Errorf("unexpected type")
+		return toMessageDescriptor(fileDesc.Messages().Get(index), msgIndexes[1:])
 	}
+
+	if msgDesc, ok := descriptor.(protoreflect.MessageDescriptor); ok {
+		if len(msgIndexes) == 1 {
+			return msgDesc.Messages().Get(index), nil
+		}
+
+		return toMessageDescriptor(msgDesc.Messages().Get(index), msgIndexes[1:])
+	}
+
+	return nil, fmt.Errorf("unexpected type")
 }
 
 type schemaKey struct {
@@ -571,24 +681,24 @@ type schemaKey struct {
 }
 
 type fileDescriptorsCache struct {
-	values map[schemaKey]*desc.FileDescriptor
+	values map[schemaKey]protoreflect.FileDescriptor
 	lock   sync.RWMutex
 }
 
 func newFileDescriptorsCache() *fileDescriptorsCache {
 	return &fileDescriptorsCache{
-		values: make(map[schemaKey]*desc.FileDescriptor),
+		values: make(map[schemaKey]protoreflect.FileDescriptor),
 	}
 }
 
-func (p *fileDescriptorsCache) add(key schemaKey, value *desc.FileDescriptor) {
+func (p *fileDescriptorsCache) add(key schemaKey, value protoreflect.FileDescriptor) {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
 	p.values[key] = value
 }
 
-func (p *fileDescriptorsCache) get(key schemaKey) (*desc.FileDescriptor, bool) {
+func (p *fileDescriptorsCache) get(key schemaKey) (protoreflect.FileDescriptor, bool) {
 	p.lock.RLock()
 	defer p.lock.RUnlock()
 

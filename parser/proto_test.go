@@ -569,6 +569,61 @@ func TestProtoGetFloat(t *testing.T) {
 	})
 }
 
+func TestProtoGetDecimal(t *testing.T) {
+	t.Parallel()
+
+	t.Run("all types", func(t *testing.T) {
+		t.Parallel()
+		zeroDec := decimal.New(0, 0)
+		testCases := []SimpleCase{
+			// nullable: false
+			{"not_exist", false, zeroDec},
+			{"null", false, zeroDec},
+			{"bool_true", false, zeroDec},
+			{"bool_false", false, zeroDec},
+			{"num_int32", false, zeroDec},
+			{"num_int64", false, zeroDec},
+			{"num_float", false, decimal.New(12332099914550781, -14)},
+			{"num_double", false, decimal.New(12344321, -4)},
+			{"num_uint32", false, zeroDec},
+			{"num_uint64", false, zeroDec},
+			{"str", false, zeroDec},
+			{"timestamp", false, zeroDec},
+			{"obj", false, zeroDec},
+			{"array_empty", false, zeroDec},
+			// nullable: true
+			{"not_exist", true, nil},
+			{"null", true, nil},
+			{"bool_true", true, nil},
+			{"bool_false", true, nil},
+			{"num_int32", true, nil},
+			{"num_int64", true, nil},
+			{"num_float", true, decimal.New(12332099914550781, -14)},
+			{"num_double", true, decimal.New(12344321, -4)},
+			{"num_uint32", true, nil},
+			{"num_uint64", true, nil},
+			{"str", true, nil},
+			{"timestamp", true, nil},
+			{"obj", true, nil},
+			{"array_empty", true, nil},
+		}
+
+		metric := createProtoMetric(t, testBaseMessage)
+		for i := range testCases {
+			tc := &testCases[i]
+
+			desc := testCaseDescription(protoName, "GetFloat64", tc.Field, tc.Nullable)
+			v := metric.GetDecimal(tc.Field, tc.Nullable)
+			if v != nil {
+				dec := v.(decimal.Decimal)
+				fmt.Println(desc, dec.Coefficient(), dec.Exponent())
+			} else {
+				fmt.Println(desc, nil)
+			}
+		}
+	})
+}
+
 func TestProtoGetFloat32(t *testing.T) {
 	t.Parallel()
 

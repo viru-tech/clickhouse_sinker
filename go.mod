@@ -1,6 +1,6 @@
 module github.com/viru-tech/clickhouse_sinker
 
-go 1.23.2
+go 1.23
 
 require (
 	github.com/ClickHouse/clickhouse-go/v2 v2.32.1

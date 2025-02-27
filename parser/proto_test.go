@@ -612,14 +612,9 @@ func TestProtoGetDecimal(t *testing.T) {
 		for i := range testCases {
 			tc := &testCases[i]
 
-			desc := testCaseDescription(protoName, "GetFloat64", tc.Field, tc.Nullable)
+			desc := testCaseDescription(protoName, "GetDecimal", tc.Field, tc.Nullable)
 			v := metric.GetDecimal(tc.Field, tc.Nullable)
-			if v != nil {
-				dec := v.(decimal.Decimal)
-				fmt.Println(desc, dec.Coefficient(), dec.Exponent())
-			} else {
-				fmt.Println(desc, nil)
-			}
+			require.Equal(t, tc.ExpVal, v, desc)
 		}
 	})
 }

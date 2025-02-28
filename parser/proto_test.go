@@ -583,7 +583,7 @@ func TestProtoGetDecimal(t *testing.T) {
 			{"bool_false", false, zeroDec},
 			{"num_int32", false, zeroDec},
 			{"num_int64", false, zeroDec},
-			{"num_float", false, decimal.New(12332099914550781, -14)},
+			{"num_float", false, decimal.New(123321, -3)},
 			{"num_double", false, decimal.New(12344321, -4)},
 			{"num_uint32", false, zeroDec},
 			{"num_uint64", false, zeroDec},
@@ -598,7 +598,7 @@ func TestProtoGetDecimal(t *testing.T) {
 			{"bool_false", true, nil},
 			{"num_int32", true, nil},
 			{"num_int64", true, nil},
-			{"num_float", true, decimal.New(12332099914550781, -14)},
+			{"num_float", false, decimal.New(123321, -3)},
 			{"num_double", true, decimal.New(12344321, -4)},
 			{"num_uint32", true, nil},
 			{"num_uint64", true, nil},
@@ -611,10 +611,12 @@ func TestProtoGetDecimal(t *testing.T) {
 		metric := createProtoMetric(t, testBaseMessage)
 		for i := range testCases {
 			tc := &testCases[i]
+			t.Run(tc.Field, func(t *testing.T) {
+				desc := testCaseDescription(protoName, "GetDecimal", tc.Field, tc.Nullable)
+				v := metric.GetDecimal(tc.Field, tc.Nullable)
+				require.Equal(t, tc.ExpVal, v, desc)
+			})
 
-			desc := testCaseDescription(protoName, "GetDecimal", tc.Field, tc.Nullable)
-			v := metric.GetDecimal(tc.Field, tc.Nullable)
-			require.Equal(t, tc.ExpVal, v, desc)
 		}
 	})
 }

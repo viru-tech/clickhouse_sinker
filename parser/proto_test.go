@@ -119,6 +119,20 @@ func TestProtoGetString(t *testing.T) {
 		{"str", false, `escaped_"ws`},
 		{"obj", false, "str:\"test\""},
 		{"array_empty", false, "[]"},
+		{"array_bool", false, "[true false]"},
+		{"array_num_int32", false, "[-123 0 123]"},
+		{"array_num_int64", false, "[-123 0 123]"},
+		{"array_num_float", false, "[0 1]"},
+		{"array_num_double", false, "[0 1]"},
+		{"array_num_uint32", false, "[0 123]"},
+		{"array_num_uint64", false, "[0 123]"},
+		{"array_str", false, "[aa bb cc]"},
+		{"uuid", false, "2211a6ec-3799-41c1-ac41-4ab02f8e3cf2"},
+		{"array_uuid", false, "[2211a6ec-3799-41c1-ac41-4ab02f8e3cf2 f6acf2ad-757a-4eb3-96b2-6c3d6f2bec6e]"},
+		{"ipv4", false, "1.2.3.4"},
+		{"array_ipv4", false, "[1.2.3.4 2.3.4.5]"},
+		{"ipv6", false, "fe80::74e6:b5f3:fe92:830e"},
+		{"array_ipv6", false, "[fe80::74e6:b5f3:fe92:830e fe80::2a3:aeff:fe53:743e]"},
 		// nullable: true
 		{"not_exist", true, nil},
 		{"null", true, "<nil>"},
@@ -134,6 +148,20 @@ func TestProtoGetString(t *testing.T) {
 		{"obj", true, "str:\"test\""},
 		{"timestamp", true, "seconds:1662027630"},
 		{"array_empty", true, "[]"},
+		{"array_bool", true, "[true false]"},
+		{"array_num_int32", true, "[-123 0 123]"},
+		{"array_num_int64", true, "[-123 0 123]"},
+		{"array_num_float", true, "[0 1]"},
+		{"array_num_double", true, "[0 1]"},
+		{"array_num_uint32", true, "[0 123]"},
+		{"array_num_uint64", true, "[0 123]"},
+		{"array_str", true, "[aa bb cc]"},
+		{"uuid", true, "2211a6ec-3799-41c1-ac41-4ab02f8e3cf2"},
+		{"array_uuid", true, "[2211a6ec-3799-41c1-ac41-4ab02f8e3cf2 f6acf2ad-757a-4eb3-96b2-6c3d6f2bec6e]"},
+		{"ipv4", true, "1.2.3.4"},
+		{"array_ipv4", true, "[1.2.3.4 2.3.4.5]"},
+		{"ipv6", true, "fe80::74e6:b5f3:fe92:830e"},
+		{"array_ipv6", true, "[fe80::74e6:b5f3:fe92:830e fe80::2a3:aeff:fe53:743e]"},
 	}
 
 	metric := createProtoMetric(t, testBaseMessage)
@@ -737,13 +765,13 @@ func TestProtoGetUUID(t *testing.T) {
 		// nullable: false
 		{"not_exist", false, zeroUUID},
 		{"uuid", false, "2211a6ec-3799-41c1-ac41-4ab02f8e3cf2"},
-		{"array_uuid", false, "[2211a6ec-3799-41c1-ac41-4ab02f8e3cf2 f6acf2ad-757a-4eb3-96b2-6c3d6f2bec6e]"},
-		{"array_empty", false, "[]"},
+		{"array_uuid", false, zeroUUID},
+		{"array_empty", false, zeroUUID},
 		// nullable: true
 		{"not_exist", true, nil},
 		{"uuid", true, "2211a6ec-3799-41c1-ac41-4ab02f8e3cf2"},
-		{"array_uuid", true, "[2211a6ec-3799-41c1-ac41-4ab02f8e3cf2 f6acf2ad-757a-4eb3-96b2-6c3d6f2bec6e]"},
-		{"array_empty", true, "[]"},
+		{"array_uuid", true, nil},
+		{"array_empty", true, nil},
 	}
 
 	metric := createProtoMetric(t, testBaseMessage)
@@ -757,13 +785,13 @@ func TestProtoGetIPv4(t *testing.T) {
 		// nullable: false
 		{"not_exist", false, net.IPv4zero.String()},
 		{"ipv4", false, "1.2.3.4"},
-		{"array_ipv4", false, "[1.2.3.4 2.3.4.5]"},
-		{"array_empty", false, "[]"},
+		{"array_ipv4", false, net.IPv4zero.String()},
+		{"array_empty", false, net.IPv4zero.String()},
 		// nullable: true
 		{"not_exist", true, nil},
 		{"ipv4", true, "1.2.3.4"},
-		{"array_ipv4", true, "[1.2.3.4 2.3.4.5]"},
-		{"array_empty", true, "[]"},
+		{"array_ipv4", true, nil},
+		{"array_empty", true, nil},
 	}
 
 	metric := createProtoMetric(t, testBaseMessage)
@@ -777,13 +805,13 @@ func TestProtoGetIPv6(t *testing.T) {
 		// nullable: false
 		{"not_exist", false, net.IPv6zero.String()},
 		{"ipv6", false, "fe80::74e6:b5f3:fe92:830e"},
-		{"array_ipv6", false, "[fe80::74e6:b5f3:fe92:830e fe80::2a3:aeff:fe53:743e]"},
-		{"array_empty", false, "[]"},
+		{"array_ipv6", false, net.IPv6zero.String()},
+		{"array_empty", false, net.IPv6zero.String()},
 		// nullable: true
 		{"not_exist", true, nil},
 		{"ipv6", true, "fe80::74e6:b5f3:fe92:830e"},
-		{"array_ipv6", true, "[fe80::74e6:b5f3:fe92:830e fe80::2a3:aeff:fe53:743e]"},
-		{"array_empty", true, "[]"},
+		{"array_ipv6", true, nil},
+		{"array_empty", true, nil},
 	}
 
 	metric := createProtoMetric(t, testBaseMessage)

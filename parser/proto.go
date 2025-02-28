@@ -58,60 +58,28 @@ func (m *ProtoMetric) GetBool(key string, nullable bool) interface{} {
 		return getDefaultBool(nullable)
 	}
 
-	value := m.msg.Get(field).Interface()
-	return getBool(reflect.ValueOf(value), nullable)
+	return getBool(field, m.msg.Get(field), nullable)
 }
 
 func (m *ProtoMetric) GetInt8(key string, nullable bool) interface{} {
 	field := m.msg.Descriptor().Fields().ByName(protoreflect.Name(key))
-	if field == nil {
-		if nullable {
-			return nil
-		}
-		return int8(0)
-	}
-
-	value := m.msg.Get(field).Interface()
-	return getIntFromProto[int8](value, nullable, math.MinInt8, math.MaxInt8)
+	return getIntFromProto[int8](field, m.msg.Get(field), nullable, math.MinInt8, math.MaxInt8)
 }
 
 func (m *ProtoMetric) GetInt16(key string, nullable bool) interface{} {
 	field := m.msg.Descriptor().Fields().ByName(protoreflect.Name(key))
-	if field == nil {
-		if nullable {
-			return nil
-		}
-		return int16(0)
-	}
-
-	value := m.msg.Get(field).Interface()
-	return getIntFromProto[int16](value, nullable, math.MinInt16, math.MaxInt16)
+	return getIntFromProto[int16](field, m.msg.Get(field), nullable, math.MinInt16, math.MaxInt16)
 }
 
 func (m *ProtoMetric) GetInt32(key string, nullable bool) interface{} {
 	field := m.msg.Descriptor().Fields().ByName(protoreflect.Name(key))
-	if field == nil {
-		if nullable {
-			return nil
-		}
-		return int32(0)
-	}
+	return getIntFromProto[int32](field, m.msg.Get(field), nullable, math.MinInt32, math.MaxInt32)
 
-	value := m.msg.Get(field).Interface()
-	return getIntFromProto[int32](value, nullable, math.MinInt32, math.MaxInt32)
 }
 
 func (m *ProtoMetric) GetInt64(key string, nullable bool) interface{} {
 	field := m.msg.Descriptor().Fields().ByName(protoreflect.Name(key))
-	if field == nil {
-		if nullable {
-			return nil
-		}
-		return int64(0)
-	}
-
-	value := m.msg.Get(field).Interface()
-	return getIntFromProto[int64](value, nullable, math.MinInt64, math.MaxInt64)
+	return getIntFromProto[int64](field, m.msg.Get(field), nullable, math.MinInt64, math.MaxInt64)
 }
 
 func (m *ProtoMetric) GetUint8(key string, nullable bool) interface{} {
@@ -286,57 +254,65 @@ func (m *ProtoMetric) GetIPv6(key string, nullable bool) interface{} {
 }
 
 func (m *ProtoMetric) GetArray(key string, t int) interface{} {
-	value := m.msg.Get(m.msg.Descriptor().Fields().ByName(protoreflect.Name(key))).List()
-	if value == nil {
+	field := m.msg.Descriptor().Fields().ByName(protoreflect.Name(key))
+	if field == nil {
+		return nil
+	}
+	if !field.IsList() {
+		return nil
+	}
+
+	list := m.msg.Get(m.msg.Descriptor().Fields().ByName(protoreflect.Name(key))).List()
+	if list == nil {
 		return nil
 	}
 
 	switch t {
 	case model.Bool:
 		arr := make([]bool, 0)
-		for i := 0; i < value.Len(); i++ {
-			item := getBool(reflect.ValueOf(value.Get(i).Interface()), false).(bool)
+		for i := 0; i < list.Len(); i++ {
+			item := getBool(field, list.Get(i), false).(bool)
 			arr = append(arr, item)
 		}
 		return arr
 	case model.Int8:
-		return getIntSliceFromProto[int8](value, math.MinInt8, math.MaxInt8)
+		return getIntSliceFromProto[int8](field, list, math.MinInt8, math.MaxInt8)
 	case model.Int16:
-		return getIntSliceFromProto[int16](value, math.MinInt16, math.MaxInt16)
+		return getIntSliceFromProto[int16](field, list, math.MinInt16, math.MaxInt16)
 	case model.Int32:
-		return getIntSliceFromProto[int32](value, math.MinInt32, math.MaxInt32)
+		return getIntSliceFromProto[int32](field, list, math.MinInt32, math.MaxInt32)
 	case model.Int64:
-		return getIntSliceFromProto[int64](value, math.MinInt64, math.MaxInt64)
+		return getIntSliceFromProto[int64](field, list, math.MinInt64, math.MaxInt64)
 	case model.UInt8:
-		return getUIntSliceFromProto[uint8](value, math.MaxUint8)
+		return getUIntSliceFromProto[uint8](list, math.MaxUint8)
 	case model.UInt16:
-		return getUIntSliceFromProto[uint16](value, math.MaxUint16)
+		return getUIntSliceFromProto[uint16](list, math.MaxUint16)
 	case model.UInt32:
-		return getUIntSliceFromProto[uint32](value, math.MaxUint32)
+		return getUIntSliceFromProto[uint32](list, math.MaxUint32)
 	case model.UInt64:
-		return getUIntSliceFromProto[uint64](value, math.MaxUint64)
+		return getUIntSliceFromProto[uint64](list, math.MaxUint64)
 	case model.Float32:
-		return getFloatSliceFromProto[float32](value, math.MaxFloat32)
+		return getFloatSliceFromProto[float32](list, math.MaxFloat32)
 	case model.Float64:
-		return getFloatSliceFromProto[float64](value, math.MaxFloat64)
+		return getFloatSliceFromProto[float64](list, math.MaxFloat64)
 	case model.Decimal:
 		arr := make([]decimal.Decimal, 0)
-		for i := 0; i < value.Len(); i++ {
-			item := getDecimal(reflect.ValueOf(value.Get(i).Interface()), false).(decimal.Decimal)
+		for i := 0; i < list.Len(); i++ {
+			item := getDecimal(reflect.ValueOf(list.Get(i).Interface()), false).(decimal.Decimal)
 			arr = append(arr, item)
 		}
 		return arr
 	case model.String:
 		arr := make([]string, 0)
-		for i := 0; i < value.Len(); i++ {
-			item := getString(reflect.ValueOf(value.Get(i).Interface()))
+		for i := 0; i < list.Len(); i++ {
+			item := getString(reflect.ValueOf(list.Get(i).Interface()))
 			arr = append(arr, item)
 		}
 		return arr
 	case model.UUID:
 		arr := make([]string, 0)
-		for i := 0; i < value.Len(); i++ {
-			item := getString(reflect.ValueOf(value.Get(i).Interface()))
+		for i := 0; i < list.Len(); i++ {
+			item := getString(reflect.ValueOf(list.Get(i).Interface()))
 			if item == "" {
 				item = zeroUUID
 			}
@@ -345,8 +321,8 @@ func (m *ProtoMetric) GetArray(key string, t int) interface{} {
 		return arr
 	case model.DateTime:
 		arr := make([]time.Time, 0)
-		for i := 0; i < value.Len(); i++ {
-			item := getDateTime(value.Get(i), false).(time.Time)
+		for i := 0; i < list.Len(); i++ {
+			item := getDateTime(list.Get(i), false).(time.Time)
 			arr = append(arr, item)
 		}
 		return arr
@@ -377,25 +353,37 @@ func (m *ProtoMetric) getValueOrList(field protoreflect.FieldDescriptor) any {
 	return valuelist
 }
 
-func getIntSliceFromProto[T constraints.Signed](fieldVal protoreflect.List, min, max int64) []T {
+func getIntSliceFromProto[T constraints.Signed](
+	field protoreflect.FieldDescriptor,
+	list protoreflect.List,
+	min, max int64,
+) []T {
 	arr := make([]T, 0)
-	for i := 0; i < fieldVal.Len(); i++ {
-		item := getIntFromProto[T](fieldVal.Get(i).Interface(), false, min, max)
+	for i := 0; i < list.Len(); i++ {
+		item := getIntFromProto[T](field, list.Get(i), false, min, max)
 		arr = append(arr, item.(T))
 	}
 
 	return arr
 }
 
-func getIntFromProto[T constraints.Signed](fieldVal interface{}, nullable bool, min, max int64) interface{} {
-	if fieldVal == nil {
-		return getDefaultInt[T](nullable)
+func getIntFromProto[T constraints.Signed](
+	field protoreflect.FieldDescriptor,
+	value protoreflect.Value,
+	nullable bool,
+	min,
+	max int64,
+) interface{} {
+	if field == nil {
+		return getDefaultInt[int8](nullable)
 	}
 
-	rv := reflect.ValueOf(fieldVal)
-	switch rv.Kind() {
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		int64Val := rv.Int()
+	switch field.Kind() {
+	case protoreflect.Int64Kind, protoreflect.Int32Kind,
+		protoreflect.Sint64Kind, protoreflect.Sint32Kind,
+		protoreflect.Sfixed64Kind, protoreflect.Sfixed32Kind:
+
+		int64Val := value.Int()
 		if int64Val < min {
 			return T(min)
 		}
@@ -403,14 +391,16 @@ func getIntFromProto[T constraints.Signed](fieldVal interface{}, nullable bool, 
 			return T(max)
 		}
 		return T(int64Val)
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		uint64Val := rv.Uint()
+	case protoreflect.Uint64Kind, protoreflect.Uint32Kind,
+		protoreflect.Fixed64Kind, protoreflect.Fixed32Kind:
+
+		uint64Val := value.Uint()
 		if uint64Val > uint64(max) {
 			return T(max)
 		}
 		return T(uint64Val)
-	case reflect.Bool:
-		if rv.Bool() {
+	case protoreflect.BoolKind:
+		if value.Bool() {
 			return T(1)
 		}
 		return T(0)
@@ -487,8 +477,8 @@ func getFloatFromProto[T constraints.Float](fieldVal interface{}, nullable bool,
 	return getDefaultFloat[T](nullable)
 }
 
-func getBool(value reflect.Value, nullable bool) interface{} {
-	if value.Kind() == reflect.Bool {
+func getBool(field protoreflect.FieldDescriptor, value protoreflect.Value, nullable bool) interface{} {
+	if field.Kind() == protoreflect.BoolKind {
 		return value.Bool()
 	}
 	return getDefaultBool(nullable)

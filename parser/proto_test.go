@@ -187,6 +187,8 @@ func TestProtoGetBool(t *testing.T) {
 		{"timestamp", false, false},
 		{"obj", false, false},
 		{"array_empty", false, false},
+		{"array_bool", false, false},
+		{"array_num_int32", false, false},
 		// nullable: true
 		{"not_exist", true, nil},
 		{"null", true, nil},
@@ -201,7 +203,10 @@ func TestProtoGetBool(t *testing.T) {
 		{"str", true, nil},
 		{"timestamp", true, nil},
 		{"obj", true, nil},
-		{"array_empty", true, nil}}
+		{"array_empty", true, nil},
+		{"array_bool", true, nil},
+		{"array_num_int32", true, nil},
+	}
 
 	metric := createProtoMetric(t, testBaseMessage)
 	doTestSimpleForParser(t, protoName, "GetBool", testCases, metric)
@@ -619,6 +624,8 @@ func TestProtoGetDecimal(t *testing.T) {
 			{"timestamp", false, zeroDec},
 			{"obj", false, zeroDec},
 			{"array_empty", false, zeroDec},
+			{"array_num_int32", false, zeroDec},
+			{"array_num_double", false, zeroDec},
 			// nullable: true
 			{"not_exist", true, nil},
 			{"null", true, nil},
@@ -634,6 +641,8 @@ func TestProtoGetDecimal(t *testing.T) {
 			{"timestamp", true, nil},
 			{"obj", true, nil},
 			{"array_empty", true, nil},
+			{"array_num_int32", true, nil},
+			{"array_num_double", true, nil},
 		}
 
 		metric := createProtoMetric(t, testBaseMessage)
@@ -698,6 +707,7 @@ func TestProtoGetDateTime(t *testing.T) {
 		{"timestamp", false, testDate},
 		{"obj", false, Epoch},
 		{"array_empty", false, Epoch},
+		{"array_num_int64", false, Epoch},
 		// nullable: true
 		{"not_exist", true, nil},
 		{"null", true, nil},
@@ -713,6 +723,7 @@ func TestProtoGetDateTime(t *testing.T) {
 		{"timestamp", true, testDate},
 		{"obj", true, nil},
 		{"array_empty", true, nil},
+		{"array_num_int64", true, nil},
 	}
 
 	metric := createProtoMetric(t, testBaseMessage)

@@ -10,7 +10,6 @@ import (
 	"io"
 	"math"
 	"net"
-	"reflect"
 	"regexp"
 	"strings"
 	"sync"
@@ -54,11 +53,11 @@ type ProtoMetric struct {
 
 func (m *ProtoMetric) GetBool(key string, nullable bool) interface{} {
 	field := m.msg.Descriptor().Fields().ByName(protoreflect.Name(key))
-	if field == nil {
+	if field == nil || field.IsList() {
 		return getDefaultBool(nullable)
 	}
 
-	return getBool(field.Kind(), m.msg.Get(field), nullable)
+	return getProtoBool(field.Kind(), m.msg.Get(field), nullable)
 }
 
 func (m *ProtoMetric) GetInt8(key string, nullable bool) interface{} {
@@ -184,11 +183,11 @@ func (m *ProtoMetric) GetFloat64(key string, nullable bool) interface{} {
 
 func (m *ProtoMetric) GetDecimal(key string, nullable bool) interface{} {
 	field := m.msg.Descriptor().Fields().ByName(protoreflect.Name(key))
-	if field == nil {
+	if field == nil || field.IsList() {
 		return getDefaultDecimal(nullable)
 	}
 
-	return getDecimal(field.Kind(), m.msg.Get(field), nullable)
+	return getProtoDecimal(field.Kind(), m.msg.Get(field), nullable)
 }
 
 func (m *ProtoMetric) GetDateTime(key string, nullable bool) interface{} {
@@ -197,35 +196,34 @@ func (m *ProtoMetric) GetDateTime(key string, nullable bool) interface{} {
 		return getDefaultDateTime(nullable)
 	}
 
-	return getDateTime(m.msg.Get(field), nullable)
+	return getProtoDateTime(m.msg.Get(field), nullable)
 }
 
 func (m *ProtoMetric) GetString(key string, nullable bool) interface{} {
 	field := m.msg.Descriptor().Fields().ByName(protoreflect.Name(key))
 	if field == nil {
-		if nullable {
-			return nil
-		}
-		return ""
+		return getDefaultString(nullable, "")
 	}
 
-	value := m.getValueOrList(field)
+	if !field.IsList() {
+		return getProtoString(m.msg.Get(field))
+	}
 
-	return getString(reflect.ValueOf(value))
+	list := m.msg.Get(field).List()
+	strList := make([]string, list.Len())
+	for i := 0; i < list.Len(); i++ {
+		strList[i] = getProtoString(list.Get(i))
+	}
+	return "[" + strings.Join(strList, " ") + "]"
 }
 
 func (m *ProtoMetric) GetUUID(key string, nullable bool) interface{} {
 	field := m.msg.Descriptor().Fields().ByName(protoreflect.Name(key))
-	if field == nil {
-		if nullable {
-			return nil
-		}
-		return zeroUUID
+	if field == nil || field.IsList() {
+		return getDefaultString(nullable, zeroUUID)
 	}
 
-	value := m.getValueOrList(field)
-
-	if v := getString(reflect.ValueOf(value)); v != "" {
+	if v := getProtoString(m.msg.Get(field)); v != "" {
 		return v
 	}
 	return zeroUUID
@@ -241,16 +239,11 @@ func (m *ProtoMetric) GetMap(key string, typeInfo *model.TypeInfo) interface{} {
 
 func (m *ProtoMetric) GetIPv4(key string, nullable bool) interface{} {
 	field := m.msg.Descriptor().Fields().ByName(protoreflect.Name(key))
-	if field == nil {
-		if nullable {
-			return nil
-		}
-		return net.IPv4zero.String()
+	if field == nil || field.IsList() {
+		return getDefaultString(nullable, net.IPv4zero.String())
 	}
 
-	value := m.getValueOrList(field)
-
-	if v := getString(reflect.ValueOf(value)); v != "" {
+	if v := getProtoString(m.msg.Get(field)); v != "" {
 		return v
 	}
 	return net.IPv4zero.String()
@@ -258,16 +251,11 @@ func (m *ProtoMetric) GetIPv4(key string, nullable bool) interface{} {
 
 func (m *ProtoMetric) GetIPv6(key string, nullable bool) interface{} {
 	field := m.msg.Descriptor().Fields().ByName(protoreflect.Name(key))
-	if field == nil {
-		if nullable {
-			return nil
-		}
-		return net.IPv6zero.String()
+	if field == nil || field.IsList() {
+		return getDefaultString(nullable, net.IPv6zero.String())
 	}
 
-	value := m.getValueOrList(field)
-
-	if v := getString(reflect.ValueOf(value)); v != "" {
+	if v := getProtoString(m.msg.Get(field)); v != "" {
 		return v
 	}
 	return net.IPv6zero.String()
@@ -291,7 +279,7 @@ func (m *ProtoMetric) GetArray(key string, t int) interface{} {
 	case model.Bool:
 		arr := make([]bool, 0)
 		for i := 0; i < list.Len(); i++ {
-			item := getBool(field.Kind(), list.Get(i), false).(bool)
+			item := getProtoBool(field.Kind(), list.Get(i), false).(bool)
 			arr = append(arr, item)
 		}
 		return arr
@@ -318,21 +306,21 @@ func (m *ProtoMetric) GetArray(key string, t int) interface{} {
 	case model.Decimal:
 		arr := make([]decimal.Decimal, 0)
 		for i := 0; i < list.Len(); i++ {
-			item := getDecimal(field.Kind(), list.Get(i), false).(decimal.Decimal)
+			item := getProtoDecimal(field.Kind(), list.Get(i), false).(decimal.Decimal)
 			arr = append(arr, item)
 		}
 		return arr
 	case model.String:
 		arr := make([]string, 0)
 		for i := 0; i < list.Len(); i++ {
-			item := getString(reflect.ValueOf(list.Get(i).Interface()))
+			item := getProtoString(list.Get(i))
 			arr = append(arr, item)
 		}
 		return arr
 	case model.UUID:
 		arr := make([]string, 0)
 		for i := 0; i < list.Len(); i++ {
-			item := getString(reflect.ValueOf(list.Get(i).Interface()))
+			item := getProtoString(list.Get(i))
 			if item == "" {
 				item = zeroUUID
 			}
@@ -342,7 +330,7 @@ func (m *ProtoMetric) GetArray(key string, t int) interface{} {
 	case model.DateTime:
 		arr := make([]time.Time, 0)
 		for i := 0; i < list.Len(); i++ {
-			item := getDateTime(list.Get(i), false).(time.Time)
+			item := getProtoDateTime(list.Get(i), false).(time.Time)
 			arr = append(arr, item)
 		}
 		return arr
@@ -356,21 +344,6 @@ func (m *ProtoMetric) GetArray(key string, t int) interface{} {
 func (m *ProtoMetric) GetNewKeys(knownKeys, newKeys, warnKeys *sync.Map, white, black *regexp.Regexp, partition int, offset int64) bool {
 	// dynamic schema not supported
 	return false
-}
-
-func (m *ProtoMetric) getValueOrList(field protoreflect.FieldDescriptor) any {
-	if !field.IsList() {
-		return m.msg.Get(field)
-	}
-
-	list := m.msg.Get(field).List()
-	valuelist := make([]any, 0)
-	for i := 0; i < list.Len(); i++ {
-		item := list.Get(i)
-		valuelist = append(valuelist, item)
-	}
-
-	return valuelist
 }
 
 func getIntSliceFromProto[T constraints.Signed](
@@ -516,14 +489,14 @@ func getFloatFromProto[T constraints.Float](
 	return getDefaultFloat[T](nullable)
 }
 
-func getBool(kind protoreflect.Kind, value protoreflect.Value, nullable bool) interface{} {
+func getProtoBool(kind protoreflect.Kind, value protoreflect.Value, nullable bool) interface{} {
 	if kind == protoreflect.BoolKind {
 		return value.Bool()
 	}
 	return getDefaultBool(nullable)
 }
 
-func getDecimal(kind protoreflect.Kind, value protoreflect.Value, nullable bool) interface{} {
+func getProtoDecimal(kind protoreflect.Kind, value protoreflect.Value, nullable bool) interface{} {
 	switch kind {
 	case protoreflect.FloatKind, protoreflect.DoubleKind:
 		dec, err := decimal.NewFromString(value.String())
@@ -536,7 +509,7 @@ func getDecimal(kind protoreflect.Kind, value protoreflect.Value, nullable bool)
 	}
 }
 
-func getDateTime(value protoreflect.Value, nullable bool) interface{} {
+func getProtoDateTime(value protoreflect.Value, nullable bool) interface{} {
 	timestampField, ok := value.Interface().(*dynamicpb.Message)
 	if !ok {
 		return getDefaultDateTime(nullable)
@@ -559,11 +532,15 @@ func getDateTime(value protoreflect.Value, nullable bool) interface{} {
 	return timestamp.AsTime()
 }
 
-func getString(value reflect.Value) string {
-	if value.Kind() == reflect.String {
-		return value.String()
+func getProtoString(value protoreflect.Value) string {
+	return value.String()
+}
+
+func getDefaultString(nullable bool, defaultValue string) interface{} {
+	if nullable {
+		return nil
 	}
-	return fmt.Sprintf("%v", value.Interface())
+	return defaultValue
 }
 
 // ProtoDeserializer represents a Protobuf deserializer.

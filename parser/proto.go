@@ -166,8 +166,7 @@ func (m *ProtoMetric) GetDecimal(key string, nullable bool) interface{} {
 		return getDefaultDecimal(nullable)
 	}
 
-	rv := reflect.ValueOf(m.msg.Get(field).Interface())
-	return getDecimal(rv, nullable)
+	return getDecimal(field, m.msg.Get(field), nullable)
 }
 
 func (m *ProtoMetric) GetDateTime(key string, nullable bool) interface{} {
@@ -298,7 +297,7 @@ func (m *ProtoMetric) GetArray(key string, t int) interface{} {
 	case model.Decimal:
 		arr := make([]decimal.Decimal, 0)
 		for i := 0; i < list.Len(); i++ {
-			item := getDecimal(reflect.ValueOf(list.Get(i).Interface()), false).(decimal.Decimal)
+			item := getDecimal(field, list.Get(i), false).(decimal.Decimal)
 			arr = append(arr, item)
 		}
 		return arr
@@ -484,11 +483,15 @@ func getBool(field protoreflect.FieldDescriptor, value protoreflect.Value, nulla
 	return getDefaultBool(nullable)
 }
 
-func getDecimal(value reflect.Value, nullable bool) interface{} {
-	if value.CanFloat() {
-		return decimal.NewFromFloat(value.Float())
+func getDecimal(field protoreflect.FieldDescriptor, value protoreflect.Value, nullable bool) interface{} {
+	switch field.Kind() {
+	case protoreflect.FloatKind, protoreflect.DoubleKind:
+		dec, err := decimal.NewFromString(value.String())
+		_ = err // TODO: check
+		return dec
+	default:
+		return getDefaultDecimal(nullable)
 	}
-	return getDefaultDecimal(nullable)
 }
 
 func getDateTime(value protoreflect.Value, nullable bool) interface{} {

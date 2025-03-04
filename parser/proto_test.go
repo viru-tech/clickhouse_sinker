@@ -58,6 +58,7 @@ var (
 		ArrayIpv4:      []string{"1.2.3.4", "2.3.4.5"},
 		Ipv6:           "fe80::74e6:b5f3:fe92:830e",
 		ArrayIpv6:      []string{"fe80::74e6:b5f3:fe92:830e", "fe80::2a3:aeff:fe53:743e"},
+		StrTime:        "2022-09-01 13:20:30",
 	}
 	testMaxNumMessage = &testdata.Test{
 		NumInt32:  math.MaxInt32,
@@ -708,6 +709,7 @@ func TestProtoGetDateTime(t *testing.T) {
 		{"obj", false, Epoch},
 		{"array_empty", false, Epoch},
 		{"array_num_int64", false, Epoch},
+		{"str_time", false, testDate},
 		// nullable: true
 		{"not_exist", true, nil},
 		{"null", true, nil},
@@ -724,6 +726,7 @@ func TestProtoGetDateTime(t *testing.T) {
 		{"obj", true, nil},
 		{"array_empty", true, nil},
 		{"array_num_int64", true, nil},
+		{"str_time", true, testDate},
 	}
 
 	metric := createProtoMetric(t, testBaseMessage)

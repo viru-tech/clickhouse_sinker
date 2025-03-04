@@ -63,10 +63,7 @@ func (m *ProtoMetric) GetBool(key string, nullable bool) interface{} {
 func (m *ProtoMetric) GetInt8(key string, nullable bool) interface{} {
 	field := m.msg.Descriptor().Fields().ByName(protoreflect.Name(key))
 	if field == nil || field.IsList() {
-		if nullable {
-			return nil
-		}
-		return int8(0)
+		return getDefaultInt[int8](nullable)
 	}
 
 	return getIntFromProto[int8](field.Kind(), m.msg.Get(field), nullable, math.MinInt8, math.MaxInt8)
@@ -75,10 +72,7 @@ func (m *ProtoMetric) GetInt8(key string, nullable bool) interface{} {
 func (m *ProtoMetric) GetInt16(key string, nullable bool) interface{} {
 	field := m.msg.Descriptor().Fields().ByName(protoreflect.Name(key))
 	if field == nil || field.IsList() {
-		if nullable {
-			return nil
-		}
-		return int16(0)
+		return getDefaultInt[int16](nullable)
 	}
 
 	return getIntFromProto[int16](field.Kind(), m.msg.Get(field), nullable, math.MinInt16, math.MaxInt16)
@@ -87,10 +81,7 @@ func (m *ProtoMetric) GetInt16(key string, nullable bool) interface{} {
 func (m *ProtoMetric) GetInt32(key string, nullable bool) interface{} {
 	field := m.msg.Descriptor().Fields().ByName(protoreflect.Name(key))
 	if field == nil || field.IsList() {
-		if nullable {
-			return nil
-		}
-		return int32(0)
+		return getDefaultInt[int32](nullable)
 	}
 
 	return getIntFromProto[int32](field.Kind(), m.msg.Get(field), nullable, math.MinInt32, math.MaxInt32)
@@ -100,10 +91,7 @@ func (m *ProtoMetric) GetInt32(key string, nullable bool) interface{} {
 func (m *ProtoMetric) GetInt64(key string, nullable bool) interface{} {
 	field := m.msg.Descriptor().Fields().ByName(protoreflect.Name(key))
 	if field == nil || field.IsList() {
-		if nullable {
-			return nil
-		}
-		return int64(0)
+		return getDefaultInt[int64](nullable)
 	}
 
 	return getIntFromProto[int64](field.Kind(), m.msg.Get(field), nullable, math.MinInt64, math.MaxInt64)
@@ -112,10 +100,7 @@ func (m *ProtoMetric) GetInt64(key string, nullable bool) interface{} {
 func (m *ProtoMetric) GetUint8(key string, nullable bool) interface{} {
 	field := m.msg.Descriptor().Fields().ByName(protoreflect.Name(key))
 	if field == nil || field.IsList() {
-		if nullable {
-			return nil
-		}
-		return uint8(0)
+		return getDefaultInt[uint8](nullable)
 	}
 
 	return getUIntFromProto[uint8](field.Kind(), m.msg.Get(field), nullable, math.MaxUint8)
@@ -124,10 +109,7 @@ func (m *ProtoMetric) GetUint8(key string, nullable bool) interface{} {
 func (m *ProtoMetric) GetUint16(key string, nullable bool) interface{} {
 	field := m.msg.Descriptor().Fields().ByName(protoreflect.Name(key))
 	if field == nil || field.IsList() {
-		if nullable {
-			return nil
-		}
-		return uint16(0)
+		return getDefaultInt[uint16](nullable)
 	}
 
 	return getUIntFromProto[uint16](field.Kind(), m.msg.Get(field), nullable, math.MaxUint16)
@@ -136,10 +118,7 @@ func (m *ProtoMetric) GetUint16(key string, nullable bool) interface{} {
 func (m *ProtoMetric) GetUint32(key string, nullable bool) interface{} {
 	field := m.msg.Descriptor().Fields().ByName(protoreflect.Name(key))
 	if field == nil || field.IsList() {
-		if nullable {
-			return nil
-		}
-		return uint32(0)
+		return getDefaultInt[uint32](nullable)
 	}
 
 	return getUIntFromProto[uint32](field.Kind(), m.msg.Get(field), nullable, math.MaxUint32)
@@ -148,10 +127,7 @@ func (m *ProtoMetric) GetUint32(key string, nullable bool) interface{} {
 func (m *ProtoMetric) GetUint64(key string, nullable bool) interface{} {
 	field := m.msg.Descriptor().Fields().ByName(protoreflect.Name(key))
 	if field == nil || field.IsList() {
-		if nullable {
-			return nil
-		}
-		return uint64(0)
+		return getDefaultInt[uint64](nullable)
 	}
 
 	return getUIntFromProto[uint64](field.Kind(), m.msg.Get(field), nullable, math.MaxUint64)
@@ -160,10 +136,7 @@ func (m *ProtoMetric) GetUint64(key string, nullable bool) interface{} {
 func (m *ProtoMetric) GetFloat32(key string, nullable bool) interface{} {
 	field := m.msg.Descriptor().Fields().ByName(protoreflect.Name(key))
 	if field == nil || field.IsList() {
-		if nullable {
-			return nil
-		}
-		return float32(0)
+		return getDefaultFloat[float32](nullable)
 	}
 
 	return getFloatFromProto[float32](field.Kind(), m.msg.Get(field), nullable, math.MaxFloat32)
@@ -172,10 +145,7 @@ func (m *ProtoMetric) GetFloat32(key string, nullable bool) interface{} {
 func (m *ProtoMetric) GetFloat64(key string, nullable bool) interface{} {
 	field := m.msg.Descriptor().Fields().ByName(protoreflect.Name(key))
 	if field == nil || field.IsList() {
-		if nullable {
-			return nil
-		}
-		return float64(0)
+		return getDefaultFloat[float64](nullable)
 	}
 
 	return getFloatFromProto[float64](field.Kind(), m.msg.Get(field), nullable, math.MaxFloat64)
@@ -196,7 +166,19 @@ func (m *ProtoMetric) GetDateTime(key string, nullable bool) interface{} {
 		return getDefaultDateTime(nullable)
 	}
 
-	return getProtoDateTime(m.msg.Get(field), nullable)
+	if field.Kind() == protoreflect.MessageKind {
+		return getProtoDateTime(m.msg.Get(field), nullable)
+	}
+	if field.Kind() != protoreflect.StringKind {
+		return getDefaultDateTime(nullable)
+	}
+
+	val, err := m.pp.ParseDateTime(key, m.msg.Get(field).String())
+	if err != nil {
+		return getDefaultDateTime(nullable)
+	}
+
+	return val
 }
 
 func (m *ProtoMetric) GetString(key string, nullable bool) interface{} {

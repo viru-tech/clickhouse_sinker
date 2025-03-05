@@ -225,7 +225,8 @@ func (m *ProtoMetric) GetMap(key string, typeInfo *model.TypeInfo) interface{} {
 	if !field.IsMap() {
 		return regularMap
 	}
-
+	a := field.Kind()
+	_ = a
 	data := m.msg.Get(field).Map()
 	data.Range(func(key protoreflect.MapKey, value protoreflect.Value) bool {
 		switch typeInfo.MapValue.Type {
@@ -243,8 +244,11 @@ func (m *ProtoMetric) GetMap(key string, typeInfo *model.TypeInfo) interface{} {
 	return regularMap
 }
 
-func protoObjectToMap(value protoreflect.Value) *model.OrderedMap {
-	resultMap := model.NewOrderedMap()
+func protoObjectToMap(value protoreflect.Value) (resultMap *model.OrderedMap) {
+	resultMap = model.NewOrderedMap()
+	defer func() {
+		_ = recover()
+	}()
 	valMap := value.Message()
 	valMap.Range(func(descriptor protoreflect.FieldDescriptor, value protoreflect.Value) bool {
 		if descriptor.IsList() {

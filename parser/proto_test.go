@@ -847,6 +847,7 @@ func TestProtoGetMap(t *testing.T) {
 		{"map_str_date", &model.TypeInfo{Type: model.Map, MapKey: &model.TypeInfo{Type: model.String}, MapValue: &model.TypeInfo{Type: model.DateTime}}, map[string]time.Time{"i": time.Date(2008, 8, 8, 0, 0, 0, 0, time.Local).UTC(), "j": time.Date(2022, 1, 1, 0, 0, 0, 0, time.Local).UTC()}},
 		{"map_str_obj", &model.TypeInfo{Type: model.Map, MapKey: &model.TypeInfo{Type: model.String}, MapValue: &model.TypeInfo{Type: model.Map}}, map[any]any{"i": map[any]any{"str": "first"}, "j": map[any]any{"str": "second"}}},
 		{"map_str_list", &model.TypeInfo{Type: model.Map, MapKey: &model.TypeInfo{Type: model.String}, MapValue: &model.TypeInfo{Type: model.Map}}, map[any]any{"i": map[any]any{"str": []any{"first", "second"}}, "j": map[any]any{"str": []any{"third", "fourth"}}}},
+		{"map_str_str", &model.TypeInfo{Type: model.Map, MapKey: &model.TypeInfo{Type: model.String}, MapValue: &model.TypeInfo{Type: model.Map}}, map[any]any{"i": map[any]any{}, "j": map[any]any{}}},
 	}
 
 	for _, tc := range testCases {

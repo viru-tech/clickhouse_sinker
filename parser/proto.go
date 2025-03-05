@@ -246,9 +246,12 @@ func (m *ProtoMetric) GetMap(key string, typeInfo *model.TypeInfo) interface{} {
 
 func protoObjectToMap(value protoreflect.Value) (resultMap *model.OrderedMap) {
 	resultMap = model.NewOrderedMap()
-	defer func() {
-		_ = recover()
-	}()
+
+	_, ok := value.Interface().(protoreflect.Message)
+	if !ok {
+		return resultMap
+	}
+
 	valMap := value.Message()
 	valMap.Range(func(descriptor protoreflect.FieldDescriptor, value protoreflect.Value) bool {
 		if descriptor.IsList() {

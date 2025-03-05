@@ -107,6 +107,18 @@ var (
 				Str: "second",
 			},
 		},
+		MapStrList: map[string]*testdata.NestedRepeatedTest{
+			"i": {
+				Str: []string{
+					"first", "second",
+				},
+			},
+			"j": {
+				Str: []string{
+					"third", "fourth",
+				},
+			},
+		},
 	}
 	testMaxNumMessage = &testdata.Test{
 		NumInt32:  math.MaxInt32,
@@ -834,6 +846,7 @@ func TestProtoGetMap(t *testing.T) {
 		{"map_str_bool", &model.TypeInfo{Type: model.Map, MapKey: &model.TypeInfo{Type: model.String}, MapValue: &model.TypeInfo{Type: model.Bool}}, map[string]bool{"i": true, "j": false}},
 		{"map_str_date", &model.TypeInfo{Type: model.Map, MapKey: &model.TypeInfo{Type: model.String}, MapValue: &model.TypeInfo{Type: model.DateTime}}, map[string]time.Time{"i": time.Date(2008, 8, 8, 0, 0, 0, 0, time.Local).UTC(), "j": time.Date(2022, 1, 1, 0, 0, 0, 0, time.Local).UTC()}},
 		{"map_str_obj", &model.TypeInfo{Type: model.Map, MapKey: &model.TypeInfo{Type: model.String}, MapValue: &model.TypeInfo{Type: model.Map}}, map[any]any{"i": map[any]any{"str": "first"}, "j": map[any]any{"str": "second"}}},
+		{"map_str_list", &model.TypeInfo{Type: model.Map, MapKey: &model.TypeInfo{Type: model.String}, MapValue: &model.TypeInfo{Type: model.Map}}, map[any]any{"i": map[any]any{"str": []any{"first", "second"}}, "j": map[any]any{"str": []any{"third", "fourth"}}}},
 	}
 
 	for _, tc := range testCases {

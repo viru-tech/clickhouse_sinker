@@ -222,11 +222,15 @@ func (m *ProtoMetric) GetMap(key string, typeInfo *model.TypeInfo) interface{} {
 		return regularMap
 	}
 
+	if !field.IsMap() {
+		return regularMap
+	}
+
 	data := m.msg.Get(field).Map()
 	data.Range(func(key protoreflect.MapKey, value protoreflect.Value) bool {
 		switch typeInfo.MapValue.Type {
 		case model.Map:
-			regularMap.Put(key.Interface(), objectToMap(value))
+			regularMap.Put(key.Interface(), protoObjectToMap(value))
 		case model.DateTime:
 			regularMap.Put(key.Interface(), getProtoDateTime(value, typeInfo.MapValue.Nullable))
 		default:
@@ -239,16 +243,16 @@ func (m *ProtoMetric) GetMap(key string, typeInfo *model.TypeInfo) interface{} {
 	return regularMap
 }
 
-func objectToMap(value protoreflect.Value) *model.OrderedMap {
+func protoObjectToMap(value protoreflect.Value) *model.OrderedMap {
 	resultMap := model.NewOrderedMap()
 	valMap := value.Message()
 	valMap.Range(func(descriptor protoreflect.FieldDescriptor, value protoreflect.Value) bool {
 		if descriptor.IsList() {
-			resultMap.Put(descriptor.JSONName(), getList(value.List()))
+			resultMap.Put(descriptor.JSONName(), getProtoList(value.List()))
 			return true
 		}
 		if descriptor.IsMap() {
-			resultMap.Put(descriptor.JSONName(), objectToMap(value))
+			resultMap.Put(descriptor.JSONName(), protoObjectToMap(value))
 			return true
 		}
 
@@ -259,7 +263,7 @@ func objectToMap(value protoreflect.Value) *model.OrderedMap {
 	return resultMap
 }
 
-func getList(list protoreflect.List) []any {
+func getProtoList(list protoreflect.List) []any {
 	var res []any
 	for i := range list.Len() {
 		res = append(res, list.Get(i).Interface())

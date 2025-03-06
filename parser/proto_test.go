@@ -58,7 +58,7 @@ var (
 		ArrayIpv4:      []string{"1.2.3.4", "2.3.4.5"},
 		Ipv6:           "fe80::74e6:b5f3:fe92:830e",
 		ArrayIpv6:      []string{"fe80::74e6:b5f3:fe92:830e", "fe80::2a3:aeff:fe53:743e"},
-		StrTime:        "2022-09-01 13:20:30",
+		StrTime:        "2022-09-01 10:20:30",
 		MapInt64Str: map[int64]string{
 			1: "foo",
 			2: "bar",
@@ -146,7 +146,7 @@ func createProtoMetric(t *testing.T, message *testdata.Test) model.Metric {
 	schemaRegistry.EXPECT().Register(testSubject, schemaInfo, false).Return(testSchemaID, nil)
 	schemaRegistry.EXPECT().GetBySubjectAndID(testSubject, testSchemaID).Return(schemaInfo, nil).Times(2)
 
-	pp, err := NewParserPool(protoName, nil, "", "", timeUnit, testTopic, schemaRegistry, "")
+	pp, err := NewParserPool(protoName, nil, "", "UTC", timeUnit, testTopic, schemaRegistry, "")
 	require.NoError(t, err)
 
 	serializer, err := protobuf.NewSerializer(schemaRegistry, serde.ValueSerde, protobuf.NewSerializerConfig())

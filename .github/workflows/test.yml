@@ -34,13 +34,13 @@ jobs:
       run: make build
 
     - name: unittest
-      run: TZ="Europe/Moscow" make gotest
+      run: make gotest
 
     - name: benchtest
-      run: TZ="Europe/Moscow" make benchtest
+      run: make benchtest
 
     - name: systest
-      run: TZ="Europe/Moscow" make systest
+      run: make systest
 
     - name: Stop docker-compose
       run: docker compose down

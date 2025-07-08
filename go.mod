@@ -31,6 +31,7 @@ require (
 	github.com/twmb/franz-go/pkg/kadm v1.15.0
 	github.com/twmb/franz-go/plugin/kzap v1.1.2
 	github.com/valyala/fastjson v1.6.4
+	go.uber.org/mock v0.5.2
 	go.uber.org/zap v1.27.0
 	golang.org/x/exp v0.0.0-20250218142911-aa4b98e5adaa
 	golang.org/x/time v0.10.0

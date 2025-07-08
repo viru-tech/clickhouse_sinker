@@ -212,7 +212,102 @@ func (m *ProtoMetric) GetUUID(key string, nullable bool) interface{} {
 }
 
 func (m *ProtoMetric) GetObject(key string, nullable bool) interface{} {
-	return nil
+	field := m.msg.Descriptor().Fields().ByName(protoreflect.Name(key))
+	if field.Kind() != protoreflect.MessageKind {
+		return nil
+	}
+	data := m.msg.Get(field)
+	ret := getMessage(data)
+	if len(ret) == 0 && nullable {
+		return nil
+	}
+
+	// TODO: add nullable
+	return ret
+}
+
+func getMessage(data protoreflect.Value) map[string]any {
+	ret := make(map[string]any)
+	data.Message().Range(func(descriptor protoreflect.FieldDescriptor, value protoreflect.Value) bool {
+		name := descriptor.Name()
+		if descriptor.IsMap() {
+			ret[string(name)] = getObjectMap(descriptor, value)
+		}
+		if descriptor.IsList() {
+			ret[string(name)] = getProtoList(value.List())
+		}
+		if descriptor.Kind() == protoreflect.MessageKind {
+			ret[string(name)] = getMessage(value)
+		}
+
+		val, isInt := tryInt(descriptor, value)
+		if isInt {
+			ret[string(name)] = val
+			return true
+		}
+
+		val, isFloat := tryFloat(descriptor, value)
+		if isFloat {
+			ret[string(name)] = val
+			return true
+		}
+
+		val, isString := tryString(descriptor, value)
+		if isString {
+			ret[string(name)] = val
+			return true
+		}
+
+		return true
+	})
+
+	return ret
+}
+
+func getObjectMap(descriptor protoreflect.FieldDescriptor, data protoreflect.Value) any {
+	ret := make(map[string]any)
+	data.Map().Range(func(key protoreflect.MapKey, value protoreflect.Value) bool {
+		descriptor.MapValue()
+		ret[key.String()] = getMessage(value)
+		return true
+	})
+	return ret
+}
+
+func tryInt(descriptor protoreflect.FieldDescriptor, value protoreflect.Value) (any, bool) {
+	kind := descriptor.Kind()
+	switch kind {
+	case protoreflect.Int64Kind, protoreflect.Sfixed64Kind, protoreflect.Sint64Kind:
+		return getIntFromProto[int64](kind, value, false, math.MinInt64, math.MaxInt64), true
+	case protoreflect.Int32Kind, protoreflect.Sfixed32Kind, protoreflect.Sint32Kind:
+		return getIntFromProto[int32](kind, value, false, math.MinInt32, math.MaxInt32), true
+	case protoreflect.Uint64Kind, protoreflect.Fixed64Kind:
+		return getUIntFromProto[uint64](kind, value, false, math.MaxUint64), true
+	case protoreflect.Uint32Kind, protoreflect.Fixed32Kind:
+		return getUIntFromProto[uint32](kind, value, false, math.MaxUint32), true
+	default:
+		return nil, false
+	}
+}
+
+func tryFloat(descriptor protoreflect.FieldDescriptor, value protoreflect.Value) (any, bool) {
+	kind := descriptor.Kind()
+	switch kind {
+	case protoreflect.FloatKind:
+		return getFloatFromProto[float32](kind, value, false, math.MaxFloat32), true
+	case protoreflect.DoubleKind:
+		return getFloatFromProto[float64](kind, value, false, math.MaxFloat64), true
+	}
+
+	return nil, false
+}
+
+func tryString(descriptor protoreflect.FieldDescriptor, value protoreflect.Value) (any, bool) {
+	if descriptor.Kind() == protoreflect.StringKind {
+		return getProtoString(value), true
+	}
+
+	return nil, false
 }
 
 func (m *ProtoMetric) GetMap(key string, typeInfo *model.TypeInfo) interface{} {

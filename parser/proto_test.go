@@ -2,6 +2,8 @@ package parser
 
 import (
 	"fmt"
+	"google.golang.org/protobuf/types/known/structpb"
+	"log"
 	"math"
 	"net"
 	"testing"
@@ -119,6 +121,25 @@ var (
 				},
 			},
 		},
+		Object: func() *structpb.Struct {
+			str, err := structpb.NewStruct(map[string]any{
+				"a": 1,
+				"b": []any{
+					2, 3,
+				},
+				"c": map[string]any{
+					"d": 4,
+					"e": []any{5, 6},
+					"f": map[string]any{
+						"g": 7,
+					},
+				},
+			})
+			if err != nil {
+				log.Fatalf("can't marshal struct: %s", err.Error())
+			}
+			return str
+		}(),
 	}
 	testMaxNumMessage = &testdata.Test{
 		NumInt32:  math.MaxInt32,
@@ -857,6 +878,28 @@ func TestProtoGetMap(t *testing.T) {
 			metric := createProtoMetric(t, testBaseMessage)
 			desc := fmt.Sprintf(`%s.GetMap("%s")`, protoName, tc.field)
 			v := metric.GetMap(tc.field, tc.typ)
+			require.NotNil(t, v, desc)
+			compareMap(t, v, tc.expVal, desc)
+		})
+	}
+}
+
+func TestProtoGetObject(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		field    string
+		nullable bool
+		expVal   map[string]any
+	}{
+		{"object", true, nil},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.field, func(t *testing.T) {
+			t.Parallel()
+			metric := createProtoMetric(t, testBaseMessage)
+			desc := fmt.Sprintf(`%s.GetMap("%s")`, protoName, tc.field)
+			v := metric.GetObject(tc.field, tc.nullable)
 			require.NotNil(t, v, desc)
 			compareMap(t, v, tc.expVal, desc)
 		})

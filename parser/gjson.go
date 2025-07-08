@@ -217,7 +217,6 @@ func (c *GjsonMetric) GetDateTime(key string, nullable bool) (val interface{}) {
 	return getGJsonDateTime(c, key, c.getField(key), nullable)
 }
 
-// TODO: tests
 func (c *GjsonMetric) GetObject(key string, nullable bool) (val interface{}) {
 	field := c.getField(key)
 	if field.IsObject() {

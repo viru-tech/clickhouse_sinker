@@ -807,6 +807,9 @@ func TestParseObject(t *testing.T) {
 	compareObj := func(t *testing.T, map1 interface{}, map2 interface{}, desc string) {
 		value1 := reflect.ValueOf(map1)
 		value2 := reflect.ValueOf(map2)
+		if value2.Len() != value1.Len() {
+			fmt.Println("huh")
+		}
 		assert.Equal(t, value1.Len(), value2.Len())
 
 		// v1 - map[interface{}]interface{}, v2 could be map[string][string] or map[string][float64]
@@ -835,19 +838,19 @@ func TestParseObject(t *testing.T) {
 		{"map_str_uint", map[string]float64{"i": float64(1), "j": float64(2)}},
 		{"map_str_int", map[string]float64{"i": float64(-1), "j": float64(-2)}},
 		{"map_str_float", map[string]float64{"i": float64(3.1415), "j": float64(9.876)}},
-		{"map_str_bool", map[string]interface{}{}}, // type with non fastjson.TypeNumber will be discarded
+		{"map_str_bool", map[string]any{"i": true, "j": false}},
 		{"map_str_date", map[string]string{"i": "2008-08-08", "j": "2022-01-01"}},
 	}
 
 	for _, it := range testCases {
-		desc := fmt.Sprintf(`fastjson.GetObject("%s", false)`, it.name)
-		result := metrics[fastJsonName].GetObject(it.name, false)
-		compareObj(t, result, it.expVal, desc)
+		fastJSON := metrics[fastJsonName].GetObject(it.name, false)
+		gJSON := metrics[gjsonName].GetObject(it.name, false)
+		compareObj(t, fastJSON, it.expVal, fmt.Sprintf(`fastjson.GetObject("%s", false)`, it.name))
+		compareObj(t, gJSON, it.expVal, fmt.Sprintf(`gjson.GetObject("%s", false)`, it.name))
 	}
 
-	// GetObject is not supported for csv ang gjson parser
+	// GetObject is not supported for csv parser
 	require.Equal(t, nil, metrics["csv"].GetObject("whatever", false))
-	require.Equal(t, nil, metrics[gjsonName].GetObject("whatever", false))
 }
 
 func TestParseDateTime(t *testing.T) {

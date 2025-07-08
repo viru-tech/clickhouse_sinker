@@ -225,8 +225,7 @@ func (m *ProtoMetric) GetMap(key string, typeInfo *model.TypeInfo) interface{} {
 	if !field.IsMap() {
 		return regularMap
 	}
-	a := field.Kind()
-	_ = a
+
 	data := m.msg.Get(field).Map()
 	data.Range(func(key protoreflect.MapKey, value protoreflect.Value) bool {
 		switch typeInfo.MapValue.Type {

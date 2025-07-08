@@ -38,7 +38,7 @@ import (
 
 var (
 	ErrTblNotExist     = errors.Newf("table doesn't exist")
-	selectSQLTemplate  = `select name, type, default_kind from system.columns where database = '%s' and table = '%s'`
+	selectSQLTemplate  = `SELECT name, type, default_kind FROM system.columns WHERE database = '%s' AND TABLE = '%s'`
 	referedSQLTemplate = `SELECT 
     current_col.default_expression,
     referenced_col.type AS referenced_col_type,
@@ -568,6 +568,8 @@ func (c *ClickHouse) ChangeSchema(newKeys *sync.Map) (err error) {
 			strVal = "DateTime64(3)"
 		case model.Object:
 			strVal = model.GetTypeName(intVal)
+		case model.JSON:
+			strVal = "JSON"
 		default:
 			err = errors.Newf("%s: BUG: unsupported column type %s", taskCfg.Name, model.GetTypeName(intVal))
 			return false
@@ -645,8 +647,8 @@ func (c *ClickHouse) getDistTbls(table, clusterName string) (distTbls []DistTblI
 	if conn, _, err = sc.NextGoodReplica(c.cfg.Clickhouse.Ctx, 0); err != nil {
 		return
 	}
-	query := fmt.Sprintf(`SELECT name, (extractAllGroups(engine_full, '(Distributed\\(\')(.*)\',\\s+\'(.*)\',\\s+\'(.*)\'(.*)')[1])[2] AS cluster
-	 FROM system.tables WHERE engine='Distributed' AND database='%s' AND match(engine_full, 'Distributed\(\'.*\', \'%s\', \'%s\'.*\)')`,
+	query := fmt.Sprintf(`SELECT name, (extractAllGroups(engine_full, '(Distributed\\(\')(.*)\',\\s+\'(.*)\',\\s+\'(.*)\'(.*)')[1])[2] AS CLUSTER
+	 FROM SYSTEM.tables WHERE engine='Distributed' AND DATABASE='%s' AND MATCH(engine_full, 'Distributed\(\'.*\', \'%s\', \'%s\'.*\)')`,
 		c.dbName, c.dbName, table)
 	util.Logger.Info(fmt.Sprintf("executing sql=> %s", query), zap.String("task", taskCfg.Name))
 	var rows *pool.Rows

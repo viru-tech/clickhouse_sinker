@@ -79,7 +79,7 @@ var jsonSchema = map[string]string{
 	"map_str_int":               "Object('json')",
 	"map_str_float":             "Object('json')",
 	"map_str_bool":              "Object('json')",
-	"map_str_null":              "Object('json')",
+	"map_str_nil":               "Object('json')",
 	"map_str_date":              "Object('json')",
 	"map_str_array":             "Object('json')",
 	"map_str_map":               "Object('json')",
@@ -88,6 +88,7 @@ var jsonSchema = map[string]string{
 	"uuid":                      "String",
 	"ipv4":                      "String",
 	"ipv6":                      "String",
+	"json":                      "JSON",
 }
 var jsonFields = `{
 	"fnull": null,
@@ -131,7 +132,8 @@ var jsonFields = `{
 	"fmap_str_array": {"i":[1,2,3],"j":[4,5,6]},
 	"fmap_str_map": {"i":{"i":1, "j":2}, "j":{"i":3, "j":4}},
 	"fmap_uint_uint": {"1":1, "2":2},
-	"fmap_int_string": {"1":"3.1415", "2":"9.876"}
+	"fmap_int_string": {"1":"3.1415", "2":"9.876"},
+	"json" : {"a":1,"b":{"c":3,"d":[1,2,3],"e":{"f":[5,6,7],"j":"k"}}}
 }`
 
 var csvSchema = []string{
@@ -833,7 +835,7 @@ func TestParseObject(t *testing.T) {
 		expVal interface{}
 	}{
 		// ParseObject only result a map[string][string] or map[string][float64]
-		{"map_str_nil", map[string]any{"i": nil, "j": 1}},
+		{"fmap_str_nil", map[string]any{"i": nil, "j": 1}},
 		{"map_str_str", map[string]string{"i": "first", "j": "second"}},
 		{"map_str_uint", map[string]float64{"i": float64(1), "j": float64(2)}},
 		{"map_str_int", map[string]float64{"i": float64(-1), "j": float64(-2)}},
@@ -851,6 +853,39 @@ func TestParseObject(t *testing.T) {
 
 	// GetObject is not supported for csv parser
 	require.Equal(t, nil, metrics["csv"].GetObject("whatever", false))
+}
+
+func TestParseJSON(t *testing.T) {
+	testCases := []struct {
+		name   string
+		expVal interface{}
+	}{
+		{"json", map[string]any{
+			"a": 1,
+			"b": map[string]any{
+				"c": 3,
+				"d": []any{1, 2, 3},
+				"e": map[string]any{
+					"f": []any{5, 6, 7},
+					"j": "k",
+				},
+			},
+		},
+		},
+	}
+
+	for _, it := range testCases {
+		exp, _ := json.Marshal(it.expVal)
+
+		fastJSON := metrics[fastJsonName].GetObject(it.name, false)
+		gJSON := metrics[gjsonName].GetObject(it.name, false)
+
+		fastJSONRaw, _ := json.Marshal(fastJSON)
+		gJSONRaw, _ := json.Marshal(gJSON)
+
+		assert.Equal(t, string(exp), string(fastJSONRaw), fmt.Sprintf(`fastjson.GetObject("%s", false)`, it.name))
+		assert.Equal(t, string(exp), string(gJSONRaw), fmt.Sprintf(`gjson.GetObject("%s", false)`, it.name))
+	}
 }
 
 func TestParseDateTime(t *testing.T) {
@@ -1159,7 +1194,7 @@ func TestFastjsonDetectSchema(t *testing.T) {
 		"fmap_str_int":               "Object('json')",
 		"fmap_str_float":             "Object('json')",
 		"fmap_str_bool":              "Object('json')",
-		"fmap_str_null":              "Object('json')",
+		"fmap_str_nil":               "Object('json')",
 		"fmap_str_date":              "Object('json')",
 		"fmap_str_array":             "Object('json')",
 		"fmap_str_map":               "Object('json')",

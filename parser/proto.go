@@ -656,17 +656,14 @@ func getProtoDecimal(kind protoreflect.Kind, value protoreflect.Value, nullable 
 }
 
 func getProtoDateTime(field protoreflect.FieldDescriptor, value protoreflect.Value, nullable bool) interface{} {
-	tt := new(timestamppb.Timestamp)
-	if field.Message().FullName() == "google.protobuf.Timestamp" {
-		proto.Merge(tt, value.Message().Interface())
+	if field.Message().FullName() != "google.protobuf.Timestamp" {
+		return getDefaultDateTime(nullable)
 	}
 
-	res := tt.AsTime()
-	if res == Epoch && nullable {
-		return nil
-	}
+	ts := new(timestamppb.Timestamp)
+	proto.Merge(ts, value.Message().Interface())
 
-	return res
+	return ts.AsTime()
 }
 
 func getProtoString(value protoreflect.Value) string {

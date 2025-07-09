@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"encoding/json"
 	"fmt"
 	"google.golang.org/protobuf/types/known/structpb"
 	"log"
@@ -891,17 +892,39 @@ func TestProtoGetObject(t *testing.T) {
 		nullable bool
 		expVal   map[string]any
 	}{
-		{"object", true, nil},
+		{"object", true, map[string]any{
+			"a": 1,
+			"b": []any{
+				2, 3,
+			},
+			"c": map[string]any{
+				"d": 4,
+				"e": []any{5, 6},
+				"f": map[string]any{
+					"g": 7,
+				},
+			},
+		}},
+		{"obj", true, map[string]any{
+			"str": "test",
+		}},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.field, func(t *testing.T) {
 			t.Parallel()
+
 			metric := createProtoMetric(t, testBaseMessage)
-			desc := fmt.Sprintf(`%s.GetMap("%s")`, protoName, tc.field)
+			desc := fmt.Sprintf(`%s.GetObject("%s")`, protoName, tc.field)
 			v := metric.GetObject(tc.field, tc.nullable)
 			require.NotNil(t, v, desc)
-			compareMap(t, v, tc.expVal, desc)
+
+			wantJson, err := json.Marshal(tc.expVal)
+			require.NoError(t, err)
+			gotJson, err := json.Marshal(v)
+			require.NoError(t, err)
+
+			require.Equal(t, wantJson, gotJson, desc)
 		})
 	}
 }

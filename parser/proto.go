@@ -7,6 +7,7 @@ import (
 	"github.com/bufbuild/protocompile"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/dynamicpb"
+	"google.golang.org/protobuf/types/known/structpb"
 	"io"
 	"math"
 	"net"
@@ -216,28 +217,50 @@ func (m *ProtoMetric) GetObject(key string, nullable bool) interface{} {
 	if field.Kind() != protoreflect.MessageKind {
 		return nil
 	}
+
 	data := m.msg.Get(field)
-	ret := getMessage(data)
-	if len(ret) == 0 && nullable {
-		return nil
+	switch field.Message().FullName() {
+	case "google.protobuf.Struct":
+		out := new(structpb.Struct)
+		protoCast(out, data)
+		return out.AsMap()
+	case "google.protobuf.List":
+		out := new(structpb.ListValue)
+		protoCast(out, data)
+		return out.AsSlice()
+	case "google.protobuf.Value":
+		out := new(structpb.Value)
+		protoCast(out, data)
+		return out.AsInterface()
 	}
 
-	// TODO: add nullable
-	return ret
+	return getMessage(data)
 }
 
-func getMessage(data protoreflect.Value) map[string]any {
+func protoCast[T proto.Message](out T, v protoreflect.Value) {
+	bytes, err := proto.Marshal(v.Message().Interface())
+	if err != nil {
+		return
+	}
+
+	proto.Unmarshal(bytes, out) //nolint:errcheck
+}
+
+func getMessage(data protoreflect.Value) any {
 	ret := make(map[string]any)
 	data.Message().Range(func(descriptor protoreflect.FieldDescriptor, value protoreflect.Value) bool {
 		name := descriptor.Name()
 		if descriptor.IsMap() {
-			ret[string(name)] = getObjectMap(descriptor, value)
+			ret[string(name)] = getObjectMap(value)
+			return true
 		}
 		if descriptor.IsList() {
 			ret[string(name)] = getProtoList(value.List())
+			return true
 		}
 		if descriptor.Kind() == protoreflect.MessageKind {
 			ret[string(name)] = getMessage(value)
+			return true
 		}
 
 		val, isInt := tryInt(descriptor, value)
@@ -264,10 +287,9 @@ func getMessage(data protoreflect.Value) map[string]any {
 	return ret
 }
 
-func getObjectMap(descriptor protoreflect.FieldDescriptor, data protoreflect.Value) any {
+func getObjectMap(data protoreflect.Value) any {
 	ret := make(map[string]any)
 	data.Map().Range(func(key protoreflect.MapKey, value protoreflect.Value) bool {
-		descriptor.MapValue()
 		ret[key.String()] = getMessage(value)
 		return true
 	})
@@ -367,7 +389,7 @@ func protoObjectToMap(value protoreflect.Value) (resultMap *model.OrderedMap) {
 func getProtoList(list protoreflect.List) []any {
 	var res []any
 	for i := range list.Len() {
-		res = append(res, list.Get(i).Interface())
+		res = append(res, getMessage(list.Get(i)))
 	}
 
 	return res

@@ -266,36 +266,9 @@ func getMessage(data protoreflect.Value) any {
 			return true
 		}
 
-		val, isInt := tryInt(descriptor, value)
-		if isInt {
+		val, isScalar := tryScalar(descriptor, value)
+		if isScalar {
 			ret[string(name)] = val
-			return true
-		}
-
-		val, isFloat := tryFloat(descriptor, value)
-		if isFloat {
-			ret[string(name)] = val
-			return true
-		}
-
-		val, isString := tryString(descriptor, value)
-		if isString {
-			ret[string(name)] = val
-			return true
-		}
-
-		if descriptor.Kind() == protoreflect.BytesKind {
-			ret[string(name)] = value.Bytes()
-			return true
-		}
-
-		if descriptor.Kind() == protoreflect.BoolKind {
-			ret[string(name)] = value.Bool()
-			return true
-		}
-
-		if descriptor.Kind() == protoreflect.EnumKind {
-			ret[string(name)] = value.Enum()
 			return true
 		}
 
@@ -321,7 +294,7 @@ func getObjectMap(field protoreflect.FieldDescriptor, data protoreflect.Value) a
 	return ret
 }
 
-func tryInt(descriptor protoreflect.FieldDescriptor, value protoreflect.Value) (any, bool) {
+func tryScalar(descriptor protoreflect.FieldDescriptor, value protoreflect.Value) (any, bool) {
 	kind := descriptor.Kind()
 	switch kind {
 	case protoreflect.Int64Kind, protoreflect.Sfixed64Kind, protoreflect.Sint64Kind:
@@ -332,29 +305,21 @@ func tryInt(descriptor protoreflect.FieldDescriptor, value protoreflect.Value) (
 		return getUIntFromProto[uint64](kind, value, false, math.MaxUint64), true
 	case protoreflect.Uint32Kind, protoreflect.Fixed32Kind:
 		return getUIntFromProto[uint32](kind, value, false, math.MaxUint32), true
-	default:
-		return nil, false
-	}
-}
-
-func tryFloat(descriptor protoreflect.FieldDescriptor, value protoreflect.Value) (any, bool) {
-	kind := descriptor.Kind()
-	switch kind {
 	case protoreflect.FloatKind:
 		return getFloatFromProto[float32](kind, value, false, math.MaxFloat32), true
 	case protoreflect.DoubleKind:
 		return getFloatFromProto[float64](kind, value, false, math.MaxFloat64), true
-	}
-
-	return nil, false
-}
-
-func tryString(descriptor protoreflect.FieldDescriptor, value protoreflect.Value) (any, bool) {
-	if descriptor.Kind() == protoreflect.StringKind {
+	case protoreflect.StringKind:
 		return getProtoString(value), true
+	case protoreflect.BytesKind:
+		return value.Bytes(), true
+	case protoreflect.BoolKind:
+		return value.Bool(), true
+	case protoreflect.EnumKind:
+		return value.Enum(), true
+	default:
+		return nil, false
 	}
-
-	return nil, false
 }
 
 func (m *ProtoMetric) GetMap(key string, typeInfo *model.TypeInfo) interface{} {

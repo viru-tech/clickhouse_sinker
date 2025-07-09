@@ -250,14 +250,17 @@ func getMessage(data protoreflect.Value) any {
 	ret := make(map[string]any)
 	data.Message().Range(func(descriptor protoreflect.FieldDescriptor, value protoreflect.Value) bool {
 		name := descriptor.Name()
+
 		if descriptor.IsMap() {
-			ret[string(name)] = getObjectMap(value)
+			ret[string(name)] = getObjectMap(descriptor, value)
 			return true
 		}
+
 		if descriptor.IsList() {
-			ret[string(name)] = getProtoList(value.List())
+			ret[string(name)] = getProtoList(descriptor, value.List())
 			return true
 		}
+
 		if descriptor.Kind() == protoreflect.MessageKind {
 			ret[string(name)] = getMessage(value)
 			return true
@@ -281,16 +284,38 @@ func getMessage(data protoreflect.Value) any {
 			return true
 		}
 
+		if descriptor.Kind() == protoreflect.BytesKind {
+			ret[string(name)] = value.Bytes()
+			return true
+		}
+
+		if descriptor.Kind() == protoreflect.BoolKind {
+			ret[string(name)] = value.Bool()
+			return true
+		}
+
+		if descriptor.Kind() == protoreflect.EnumKind {
+			ret[string(name)] = value.Enum()
+			return true
+		}
+
 		return true
 	})
 
 	return ret
 }
 
-func getObjectMap(data protoreflect.Value) any {
+func getObjectMap(field protoreflect.FieldDescriptor, data protoreflect.Value) any {
 	ret := make(map[string]any)
 	data.Map().Range(func(key protoreflect.MapKey, value protoreflect.Value) bool {
-		ret[key.String()] = getMessage(value)
+		switch field.MapValue().Kind() {
+		case protoreflect.MessageKind:
+			ret[key.String()] = getMessage(value)
+		case protoreflect.EnumKind:
+			ret[key.String()] = value.Enum()
+		default:
+			ret[key.String()] = value.Interface()
+		}
 		return true
 	})
 	return ret
@@ -371,7 +396,7 @@ func protoObjectToMap(value protoreflect.Value) (resultMap *model.OrderedMap) {
 	valMap := value.Message()
 	valMap.Range(func(descriptor protoreflect.FieldDescriptor, value protoreflect.Value) bool {
 		if descriptor.IsList() {
-			resultMap.Put(descriptor.JSONName(), getProtoList(value.List()))
+			resultMap.Put(descriptor.JSONName(), getProtoList(descriptor, value.List()))
 			return true
 		}
 		if descriptor.IsMap() {
@@ -386,10 +411,17 @@ func protoObjectToMap(value protoreflect.Value) (resultMap *model.OrderedMap) {
 	return resultMap
 }
 
-func getProtoList(list protoreflect.List) []any {
+func getProtoList(field protoreflect.FieldDescriptor, list protoreflect.List) []any {
 	var res []any
 	for i := range list.Len() {
-		res = append(res, getMessage(list.Get(i)))
+		switch field.Kind() {
+		case protoreflect.MessageKind:
+			res = append(res, getMessage(list.Get(i)))
+		case protoreflect.EnumKind:
+			res = append(res, list.Get(i).Enum())
+		default:
+			res = append(res, list.Get(i).Interface())
+		}
 	}
 
 	return res
@@ -668,26 +700,15 @@ func getProtoDecimal(kind protoreflect.Kind, value protoreflect.Value, nullable 
 }
 
 func getProtoDateTime(value protoreflect.Value, nullable bool) interface{} {
-	timestampField, ok := value.Interface().(*dynamicpb.Message)
-	if !ok {
-		return getDefaultDateTime(nullable)
+	tt := new(timestamppb.Timestamp)
+	protoCast(tt, value)
+
+	res := tt.AsTime()
+	if res == Epoch && nullable {
+		return nil
 	}
 
-	secondsField := timestampField.ProtoReflect().Descriptor().Fields().ByName("seconds")
-	nanosField := timestampField.ProtoReflect().Descriptor().Fields().ByName("nanos")
-	if secondsField == nil || nanosField == nil {
-		return getDefaultDateTime(nullable)
-	}
-
-	seconds := timestampField.ProtoReflect().Get(secondsField)
-	nanos := timestampField.ProtoReflect().Get(nanosField)
-
-	timestamp := &timestamppb.Timestamp{
-		Seconds: seconds.Int(),
-		Nanos:   int32(nanos.Int()),
-	}
-
-	return timestamp.AsTime()
+	return res
 }
 
 func getProtoString(value protoreflect.Value) string {

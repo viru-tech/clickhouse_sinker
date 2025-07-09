@@ -141,6 +141,22 @@ var (
 			}
 			return str
 		}(),
+		ComplexObj: &testdata.ComplexCustomObject{
+			Number: 1,
+			Arr:    []string{"a", "b"},
+			MapStrInt: map[string]int64{
+				"c": 1,
+				"d": 2,
+			},
+			Nested: &testdata.NestedRepeatedTest{
+				Str: []string{"e", "f"},
+			},
+
+			Enum: testdata.SampleEnum_ENUM_VALID,
+			MapEnumStr: map[string]testdata.SampleEnum{
+				"enum": testdata.SampleEnum_ENUM_VALID,
+			},
+		},
 	}
 	testMaxNumMessage = &testdata.Test{
 		NumInt32:  math.MaxInt32,
@@ -907,6 +923,21 @@ func TestProtoGetObject(t *testing.T) {
 		}},
 		{"obj", true, map[string]any{
 			"str": "test",
+		}},
+		{"complex_obj", true, map[string]any{
+			"arr": []any{"a", "b"},
+			"map_str_int": map[string]any{
+				"c": 1,
+				"d": 2,
+			},
+			"nested": map[string]any{
+				"str": []any{"e", "f"},
+			},
+			"enum": testdata.SampleEnum_ENUM_VALID,
+			"map_enum_str": map[string]any{
+				"enum": testdata.SampleEnum_ENUM_VALID,
+			},
+			"number": 1,
 		}},
 	}
 

@@ -168,7 +168,7 @@ func (m *ProtoMetric) GetDateTime(key string, nullable bool) interface{} {
 	}
 
 	if field.Kind() == protoreflect.MessageKind {
-		return getProtoDateTime(m.msg.Get(field), nullable)
+		return getProtoDateTime(field, m.msg.Get(field), nullable)
 	}
 	if field.Kind() != protoreflect.StringKind {
 		return getDefaultDateTime(nullable)
@@ -222,28 +222,19 @@ func (m *ProtoMetric) GetObject(key string, nullable bool) interface{} {
 	switch field.Message().FullName() {
 	case "google.protobuf.Struct":
 		out := new(structpb.Struct)
-		protoCast(out, data)
+		proto.Merge(out, data.Message().Interface())
 		return out.AsMap()
 	case "google.protobuf.List":
 		out := new(structpb.ListValue)
-		protoCast(out, data)
+		proto.Merge(out, data.Message().Interface())
 		return out.AsSlice()
 	case "google.protobuf.Value":
 		out := new(structpb.Value)
-		protoCast(out, data)
+		proto.Merge(out, data.Message().Interface())
 		return out.AsInterface()
 	}
 
 	return getMessage(data)
-}
-
-func protoCast[T proto.Message](out T, v protoreflect.Value) {
-	bytes, err := proto.Marshal(v.Message().Interface())
-	if err != nil {
-		return
-	}
-
-	proto.Unmarshal(bytes, out) //nolint:errcheck
 }
 
 func getMessage(data protoreflect.Value) any {
@@ -339,7 +330,7 @@ func (m *ProtoMetric) GetMap(key string, typeInfo *model.TypeInfo) interface{} {
 		case model.Map:
 			regularMap.Put(key.Interface(), protoObjectToMap(value))
 		case model.DateTime:
-			regularMap.Put(key.Interface(), getProtoDateTime(value, typeInfo.MapValue.Nullable))
+			regularMap.Put(key.Interface(), getProtoDateTime(field.MapValue(), value, typeInfo.MapValue.Nullable))
 		default:
 			regularMap.Put(key.Interface(), value.Interface())
 		}
@@ -485,7 +476,7 @@ func (m *ProtoMetric) GetArray(key string, t int) interface{} {
 	case model.DateTime:
 		arr := make([]time.Time, 0)
 		for i := 0; i < list.Len(); i++ {
-			item := getProtoDateTime(list.Get(i), false).(time.Time)
+			item := getProtoDateTime(field, list.Get(i), false).(time.Time)
 			arr = append(arr, item)
 		}
 		return arr
@@ -664,9 +655,11 @@ func getProtoDecimal(kind protoreflect.Kind, value protoreflect.Value, nullable 
 	}
 }
 
-func getProtoDateTime(value protoreflect.Value, nullable bool) interface{} {
+func getProtoDateTime(field protoreflect.FieldDescriptor, value protoreflect.Value, nullable bool) interface{} {
 	tt := new(timestamppb.Timestamp)
-	protoCast(tt, value)
+	if field.Message().FullName() == "google.protobuf.Timestamp" {
+		proto.Merge(tt, value.Message().Interface())
+	}
 
 	res := tt.AsTime()
 	if res == Epoch && nullable {

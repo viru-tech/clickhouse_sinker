@@ -79,6 +79,7 @@ var jsonSchema = map[string]string{
 	"map_str_int":               "Object('json')",
 	"map_str_float":             "Object('json')",
 	"map_str_bool":              "Object('json')",
+	"map_str_null":              "Object('json')",
 	"map_str_date":              "Object('json')",
 	"map_str_array":             "Object('json')",
 	"map_str_map":               "Object('json')",
@@ -125,6 +126,7 @@ var jsonFields = `{
 	"fmap_str_int": {"i":-1, "j":-2},
 	"fmap_str_float": {"i":3.1415, "j":9.876},
 	"fmap_str_bool": {"i":true, "j":false},
+	"fmap_str_nil": {"i":null, "j":1},
 	"fmap_str_date": {"i":"2008-08-08", "j":"2022-01-01"},
 	"fmap_str_array": {"i":[1,2,3],"j":[4,5,6]},
 	"fmap_str_map": {"i":{"i":1, "j":2}, "j":{"i":3, "j":4}},
@@ -807,9 +809,6 @@ func TestParseObject(t *testing.T) {
 	compareObj := func(t *testing.T, map1 interface{}, map2 interface{}, desc string) {
 		value1 := reflect.ValueOf(map1)
 		value2 := reflect.ValueOf(map2)
-		if value2.Len() != value1.Len() {
-			fmt.Println("huh")
-		}
 		assert.Equal(t, value1.Len(), value2.Len())
 
 		// v1 - map[interface{}]interface{}, v2 could be map[string][string] or map[string][float64]
@@ -834,6 +833,7 @@ func TestParseObject(t *testing.T) {
 		expVal interface{}
 	}{
 		// ParseObject only result a map[string][string] or map[string][float64]
+		{"map_str_nil", map[string]any{"i": nil, "j": 1}},
 		{"map_str_str", map[string]string{"i": "first", "j": "second"}},
 		{"map_str_uint", map[string]float64{"i": float64(1), "j": float64(2)}},
 		{"map_str_int", map[string]float64{"i": float64(-1), "j": float64(-2)}},
@@ -1159,6 +1159,7 @@ func TestFastjsonDetectSchema(t *testing.T) {
 		"fmap_str_int":               "Object('json')",
 		"fmap_str_float":             "Object('json')",
 		"fmap_str_bool":              "Object('json')",
+		"fmap_str_null":              "Object('json')",
 		"fmap_str_date":              "Object('json')",
 		"fmap_str_array":             "Object('json')",
 		"fmap_str_map":               "Object('json')",

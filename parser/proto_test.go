@@ -906,8 +906,22 @@ func TestProtoGetObject(t *testing.T) {
 	testCases := []struct {
 		field    string
 		nullable bool
-		expVal   map[string]any
+		expVal   any
 	}{
+		{"null", true, nil},
+		{"null", false, map[string]any{}},
+		{"map_str_str", true, map[string]any{"i": "first", "j": "second"}},
+		{"map_str_uint32", true, map[string]any{"i": 1, "j": 2}},
+		{"map_str_uint64", true, map[string]any{"k": 3, "l": 4}},
+		{"map_str_int32", true, map[string]any{"i": -1, "j": -2}},
+		{"map_str_int64", true, map[string]any{"k": -3, "l": -4}},
+		{"map_int64_str", true, map[int64]any{1: "foo", 2: "bar"}},
+		{"map_str_float", true, map[string]any{"i": 3.1415, "j": 9.876}},
+		{"map_str_double", true, map[string]any{"k": 3.141592653589793, "l": 2.71828182846}},
+		{"map_str_bool", true, map[string]any{"i": true, "j": false}},
+		{"map_str_obj", true, map[string]any{"i": map[string]any{"str": "first"}, "j": map[string]any{"str": "second"}}},
+		{"map_str_list", true, map[string]any{"i": map[string]any{"str": []any{"first", "second"}}, "j": map[string]any{"str": []any{"third", "fourth"}}}},
+
 		{"object", true, map[string]any{
 			"a": 1,
 			"b": []any{
@@ -948,7 +962,6 @@ func TestProtoGetObject(t *testing.T) {
 			metric := createProtoMetric(t, testBaseMessage)
 			desc := fmt.Sprintf(`%s.GetObject("%s")`, protoName, tc.field)
 			v := metric.GetObject(tc.field, tc.nullable)
-			require.NotNil(t, v, desc)
 
 			wantJson, err := json.Marshal(tc.expVal)
 			require.NoError(t, err)

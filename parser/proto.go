@@ -214,30 +214,33 @@ func (m *ProtoMetric) GetUUID(key string, nullable bool) interface{} {
 
 func (m *ProtoMetric) GetObject(key string, nullable bool) interface{} {
 	field := m.msg.Descriptor().Fields().ByName(protoreflect.Name(key))
+	data := m.msg.Get(field)
+	if field.IsMap() {
+		return getObjectMap(field, data)
+	}
+
 	if field.Kind() != protoreflect.MessageKind {
+		return getObjectOrDefault(nil, nullable)
+	}
+
+	if field.Message().FullName() == "google.protobuf.Struct" {
+		out := new(structpb.Struct)
+		proto.Merge(out, data.Message().Interface())
+		return getObjectOrDefault(out.AsMap(), nullable)
+	}
+
+	return getObjectOrDefault(getMessage(data), nullable)
+}
+
+func getObjectOrDefault(out map[string]any, nullable bool) any {
+	if nullable && len(out) == 0 {
 		return nil
 	}
 
-	data := m.msg.Get(field)
-	switch field.Message().FullName() {
-	case "google.protobuf.Struct":
-		out := new(structpb.Struct)
-		proto.Merge(out, data.Message().Interface())
-		return out.AsMap()
-	case "google.protobuf.List":
-		out := new(structpb.ListValue)
-		proto.Merge(out, data.Message().Interface())
-		return out.AsSlice()
-	case "google.protobuf.Value":
-		out := new(structpb.Value)
-		proto.Merge(out, data.Message().Interface())
-		return out.AsInterface()
-	}
-
-	return getMessage(data)
+	return out
 }
 
-func getMessage(data protoreflect.Value) any {
+func getMessage(data protoreflect.Value) map[string]any {
 	ret := make(map[string]any)
 	data.Message().Range(func(descriptor protoreflect.FieldDescriptor, value protoreflect.Value) bool {
 		name := descriptor.Name()

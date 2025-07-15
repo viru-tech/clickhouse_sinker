@@ -648,7 +648,7 @@ func (c *ClickHouse) getDistTbls(table, clusterName string) (distTbls []DistTblI
 		return
 	}
 	query := fmt.Sprintf(`SELECT name, (extractAllGroups(engine_full, '(Distributed\\(\')(.*)\',\\s+\'(.*)\',\\s+\'(.*)\'(.*)')[1])[2] AS CLUSTER
-	 FROM system.tables WHERE engine='Distributed' AND DATABASE='%s' AND MATCH(engine_full, 'Distributed\(\'.*\', \'%s\', \'%s\'.*\)')`,
+	 FROM system.tables WHERE engine='Distributed' AND database='%s' AND MATCH(engine_full, 'Distributed\(\'.*\', \'%s\', \'%s\'.*\)')`,
 		c.dbName, c.dbName, table)
 	util.Logger.Info(fmt.Sprintf("executing sql=> %s", query), zap.String("task", taskCfg.Name))
 	var rows *pool.Rows

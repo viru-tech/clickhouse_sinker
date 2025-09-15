@@ -154,8 +154,8 @@ func (c *Consumer) processFetch() {
 		traceID string
 		msg     *model.InputMessage
 	}
-	// TODO: redo?
-	type thresholder struct {
+
+	type taskFlusher struct {
 		duration  time.Duration
 		ticker    *time.Ticker
 		threshold uint64
@@ -164,7 +164,7 @@ func (c *Consumer) processFetch() {
 		task      *Service
 	}
 
-	flushFn := func(traceId, with string, worker *thresholder) {
+	flushFn := func(traceId, with string, worker *taskFlusher) {
 		if len(recMap) == 0 {
 			return
 		}
@@ -184,12 +184,11 @@ func (c *Consumer) processFetch() {
 		recMap = make(model.RecordMap)
 	}
 
-	thresholds := make(map[string]*thresholder)
-
+	flushers := make(map[string]*taskFlusher)
 	c.tasks.Range(func(key, value any) bool {
 		task := value.(*Service)
 		bufSize := uint64(task.taskCfg.BufferSize * len(c.sinker.curCfg.Clickhouse.Hosts) * 4 / 5)
-		threshold := &thresholder{
+		threshold := &taskFlusher{
 			threshold: bufSize,
 			inputC:    make(chan messageWithTrace, bufSize),
 			task:      task,
@@ -199,7 +198,7 @@ func (c *Consumer) processFetch() {
 			threshold.ticker = time.NewTicker(threshold.duration)
 		}
 		if task.taskCfg.Topic != "" {
-			thresholds[task.taskCfg.Topic] = threshold
+			flushers[task.taskCfg.Topic] = threshold
 			return true
 		}
 		if task.clickhouse.TableName == "" {
@@ -208,22 +207,25 @@ func (c *Consumer) processFetch() {
 			)
 			return true
 		}
-		thresholds[task.clickhouse.TableName] = threshold
+		flushers[task.clickhouse.TableName] = threshold
 
 		return true
 	})
 
-	for i := range thresholds {
+	wg := sync.WaitGroup{}
+	wg.Add(len(flushers))
+	defer wg.Wait()
+	thresholdsCtx, cancel := context.WithCancel(c.ctx)
+	defer cancel()
+	for i := range flushers {
 		topic := i
 		go func() {
-			task := thresholds[topic]
+			defer wg.Done()
+			task := flushers[topic]
 			var traceID string
 			for {
 				select {
-				case msg, ok := <-task.inputC:
-					if !ok {
-						return
-					}
+				case msg := <-task.inputC:
 					traceID = msg.traceID
 					err := task.task.Put(msg.msg, traceID, func(traceId, with string) {
 						flushFn(traceId, with, task)
@@ -234,8 +236,9 @@ func (c *Consumer) processFetch() {
 					}
 				case <-task.ticker.C:
 					flushFn(traceID, "ticker.C triggered", task)
-				case <-c.ctx.Done():
+				case <-thresholdsCtx.Done():
 					close(task.inputC)
+					flushFn("CLOSING_CONSUMER", "consumer is closing", task)
 					return
 				}
 			}
@@ -259,7 +262,7 @@ func (c *Consumer) processFetch() {
 					zap.String("message", "bufThreshold not reached, use old traceId"),
 					zap.String("old_trace_id", traceId),
 					zap.Int("records", len(fetch)),
-					zap.Any("bufThresholds", thresholds),
+					zap.Any("bufThresholds", flushers),
 				)
 			} else {
 				traceId = fetches.TraceId
@@ -291,9 +294,9 @@ func (c *Consumer) processFetch() {
 						break
 					}
 				}
-				worker, ok := thresholds[rec.Topic]
+				worker, ok := flushers[rec.Topic]
 				if !ok && tablename != "" {
-					worker, ok = thresholds[tablename]
+					worker, ok = flushers[tablename]
 				}
 				if ok {
 					select {
@@ -302,6 +305,7 @@ func (c *Consumer) processFetch() {
 						traceID: traceId,
 					}:
 					case <-c.ctx.Done():
+						cancel()
 						util.Logger.Info("stopped processing loop", zap.String("group", c.grpConfig.Name))
 						return
 					}
@@ -326,11 +330,11 @@ func (c *Consumer) processFetch() {
 							}
 							lastOff := fpr[len(fpr)-1].Offset
 							firstOff := fpr[0].Offset
-							if thresholds[ft.Topic] == nil {
+							if flushers[ft.Topic] == nil {
 								util.Logger.Info("topic not found", zap.String("topic", ft.Topic))
 								continue
 							}
-							thresholds[ft.Topic].current += uint64(len(fpr))
+							flushers[ft.Topic].current += uint64(len(fpr))
 							or, ok := recMap[ft.Topic][ft.Partitions[j].Partition]
 							if !ok {
 								or = &model.BatchRange{Begin: math.MaxInt64, End: -1}
@@ -347,16 +351,17 @@ func (c *Consumer) processFetch() {
 				}
 			}
 			wait = true
-			for i := range thresholds {
-				if thresholds[i].current >= thresholds[i].threshold {
-					flushFn(traceId, "bufLength reached", thresholds[i])
-					thresholds[i].current = 0
-					thresholds[i].ticker.Reset(thresholds[i].duration)
+			for i := range flushers {
+				if flushers[i].current >= flushers[i].threshold {
+					flushFn(traceId, "bufLength reached", flushers[i])
+					flushers[i].current = 0
+					flushers[i].ticker.Reset(flushers[i].duration)
 					wait = false
 				}
 			}
 		case <-c.ctx.Done():
 			util.Logger.Info("stopped processing loop", zap.String("group", c.grpConfig.Name))
+			cancel()
 			return
 		}
 	}

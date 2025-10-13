@@ -185,6 +185,7 @@ func (c *Consumer) processFetch() {
 	}
 
 	flushers := make(map[string]*taskFlusher)
+	topicsToFlushers := make(map[string][]*taskFlusher)
 	c.tasks.Range(func(key, value any) bool {
 		task := value.(*Service)
 		bufSize := uint64(task.taskCfg.BufferSize * len(c.sinker.curCfg.Clickhouse.Hosts) * 4 / 5)
@@ -197,10 +198,9 @@ func (c *Consumer) processFetch() {
 			flusher.duration = time.Duration(task.taskCfg.FlushInterval) * time.Second
 			flusher.ticker = time.NewTicker(flusher.duration)
 		}
-		if task.taskCfg.Topic != "" {
-			flushers[task.taskCfg.Topic] = flusher
-			return true
-		}
+
+		flushers[task.taskCfg.Name] = flusher
+		topicsToFlushers[task.taskCfg.Topic] = append(topicsToFlushers[task.taskCfg.Topic], flusher)
 
 		return true
 	})
@@ -211,10 +211,10 @@ func (c *Consumer) processFetch() {
 	thresholdsCtx, cancel := context.WithCancel(c.ctx)
 	defer cancel()
 	for i := range flushers {
-		topic := i
+		task := i
 		go func() {
 			defer wg.Done()
-			task := flushers[topic]
+			task := flushers[task]
 			var traceID string
 			for {
 				select {
@@ -280,21 +280,23 @@ func (c *Consumer) processFetch() {
 					Timestamp: &rec.Timestamp,
 				}
 
-				worker, ok := flushers[rec.Topic]
+				workers, ok := topicsToFlushers[rec.Topic]
 				if !ok {
 					util.Logger.Warn("topic not found", zap.String("topic", rec.Topic))
 					continue
 				}
 
-				select {
-				case worker.inputC <- messageWithTrace{
-					msg:     msg,
-					traceID: traceId,
-				}:
-				case <-c.ctx.Done():
-					cancel()
-					util.Logger.Info("stopped processing loop", zap.String("group", c.grpConfig.Name))
-					return
+				for _, worker := range workers {
+					select {
+					case worker.inputC <- messageWithTrace{
+						msg:     msg,
+						traceID: traceId,
+					}:
+					case <-c.ctx.Done():
+						cancel()
+						util.Logger.Info("stopped processing loop", zap.String("group", c.grpConfig.Name))
+						return
+					}
 				}
 			}
 
@@ -314,11 +316,17 @@ func (c *Consumer) processFetch() {
 							}
 							lastOff := fpr[len(fpr)-1].Offset
 							firstOff := fpr[0].Offset
-							if flushers[ft.Topic] == nil {
+
+							workers, ok := topicsToFlushers[ft.Topic]
+							if !ok {
 								util.Logger.Info("topic not found", zap.String("topic", ft.Topic))
 								continue
 							}
-							flushers[ft.Topic].current += uint64(len(fpr))
+
+							for _, worker := range workers {
+								worker.current += uint64(len(fpr))
+							}
+
 							or, ok := recMap[ft.Topic][ft.Partitions[j].Partition]
 							if !ok {
 								or = &model.BatchRange{Begin: math.MaxInt64, End: -1}

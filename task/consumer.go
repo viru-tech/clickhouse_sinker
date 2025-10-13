@@ -188,26 +188,19 @@ func (c *Consumer) processFetch() {
 	c.tasks.Range(func(key, value any) bool {
 		task := value.(*Service)
 		bufSize := uint64(task.taskCfg.BufferSize * len(c.sinker.curCfg.Clickhouse.Hosts) * 4 / 5)
-		threshold := &taskFlusher{
+		flusher := &taskFlusher{
 			threshold: bufSize,
 			inputC:    make(chan messageWithTrace, bufSize),
 			task:      task,
 		}
 		if task.taskCfg.FlushInterval != 0 {
-			threshold.duration = time.Duration(task.taskCfg.FlushInterval) * time.Second
-			threshold.ticker = time.NewTicker(threshold.duration)
+			flusher.duration = time.Duration(task.taskCfg.FlushInterval) * time.Second
+			flusher.ticker = time.NewTicker(flusher.duration)
 		}
 		if task.taskCfg.Topic != "" {
-			flushers[task.taskCfg.Topic] = threshold
+			flushers[task.taskCfg.Topic] = flusher
 			return true
 		}
-		if task.clickhouse.TableName == "" {
-			util.Logger.Warn("can't find topic or tablename for task",
-				zap.String("topic", task.taskCfg.Topic),
-			)
-			return true
-		}
-		flushers[task.clickhouse.TableName] = threshold
 
 		return true
 	})
@@ -287,30 +280,21 @@ func (c *Consumer) processFetch() {
 					Timestamp: &rec.Timestamp,
 				}
 
-				tablename := ""
-				for _, it := range rec.Headers {
-					if it.Key == "__table_name" {
-						tablename = string(it.Value)
-						break
-					}
-				}
 				worker, ok := flushers[rec.Topic]
-				if !ok && tablename != "" {
-					worker, ok = flushers[tablename]
-				}
-				if ok {
-					select {
-					case worker.inputC <- messageWithTrace{
-						msg:     msg,
-						traceID: traceId,
-					}:
-					case <-c.ctx.Done():
-						cancel()
-						util.Logger.Info("stopped processing loop", zap.String("group", c.grpConfig.Name))
-						return
-					}
-				} else {
+				if !ok {
 					util.Logger.Warn("topic not found", zap.String("topic", rec.Topic))
+					continue
+				}
+
+				select {
+				case worker.inputC <- messageWithTrace{
+					msg:     msg,
+					traceID: traceId,
+				}:
+				case <-c.ctx.Done():
+					cancel()
+					util.Logger.Info("stopped processing loop", zap.String("group", c.grpConfig.Name))
+					return
 				}
 			}
 

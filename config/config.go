@@ -476,6 +476,10 @@ func (cfg *Config) normallizeTask(taskCfg *TaskConfig) (err error) {
 	} else {
 		taskCfg.PromLabelsBlackList = ""
 	}
+	if taskCfg.TableName == "" {
+		err = errors.Newf("Table name is required for task %s", taskCfg.Name)
+		return
+	}
 	if taskCfg.Parser == "proto" && cfg.SchemaRegistry.URL == "" {
 		err = errors.Newf("Schema registry is required for parser %s", taskCfg.Parser)
 		return

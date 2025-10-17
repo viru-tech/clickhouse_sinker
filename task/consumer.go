@@ -21,7 +21,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/viru-tech/clickhouse_sinker/config"
 	"github.com/viru-tech/clickhouse_sinker/input"
 	"github.com/viru-tech/clickhouse_sinker/model"
@@ -197,13 +196,11 @@ func (c *Consumer) processFetch() {
 						flusher.recMap[partition].End = msg.msg.Offset
 					}
 					flusher.current++
-					err := flusher.task.Put(msg.msg, uuid.NewString(), func(traceId, with string) {
+					err := flusher.task.Put(msg.msg, traceID, func(traceId, with string) {
 						flusher.flushFn(c, traceId, with)
 					})
 					if flusher.current >= flusher.threshold {
 						flusher.flushFn(c, traceID, "bufLength reached")
-						flusher.ticker.Reset(flushers[i].duration)
-						flusher.current = 0
 					}
 					if err != nil {
 						// decrease the error record
@@ -290,7 +287,7 @@ func (t *taskFlusher) flushFn(consumer *Consumer, traceId, with string) {
 		return
 	}
 
-	bufLength := atomic.LoadUint64(&t.current)
+	bufLength := t.current
 	if bufLength > 0 {
 		util.LogTrace(traceId, util.TraceKindProcessEnd,
 			zap.String("with", with),
@@ -320,4 +317,6 @@ func (t *taskFlusher) flushFn(consumer *Consumer, traceId, with string) {
 		zap.Any("offsets", t.recMap),
 	)
 	t.recMap = make(map[int32]*model.BatchRange)
+	t.ticker.Reset(t.duration)
+	t.current = 0
 }

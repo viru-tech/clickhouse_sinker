@@ -21,13 +21,12 @@ import (
 	"sync/atomic"
 	"time"
 
+	_ "github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/viru-tech/clickhouse_sinker/config"
 	"github.com/viru-tech/clickhouse_sinker/input"
 	"github.com/viru-tech/clickhouse_sinker/model"
 	"github.com/viru-tech/clickhouse_sinker/util"
 	"go.uber.org/zap"
-
-	_ "github.com/ClickHouse/clickhouse-go/v2"
 )
 
 type Commit struct {
@@ -175,8 +174,7 @@ func (c *Consumer) processFetch() {
 	defer wg.Wait()
 	thresholdsCtx, cancel := context.WithCancel(c.ctx)
 	defer cancel()
-	for i := range flushers {
-		task := i
+	for task := range flushers {
 		go func() {
 			defer wg.Done()
 			flusher := flushers[task]

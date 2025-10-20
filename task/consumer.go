@@ -208,7 +208,7 @@ func (c *Consumer) processFetch() {
 				case <-flusher.ticker.C:
 					flusher.flushFn(c, traceID, "ticker.C triggered")
 				case <-thresholdsCtx.Done():
-					flusher.flushFn(c, traceID, "consumer is closing")
+					flusher.flushFn(c, traceID, "consumer is closed")
 					return
 				}
 			}

@@ -17,18 +17,16 @@ package task
 
 import (
 	"context"
-	"math"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	_ "github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/viru-tech/clickhouse_sinker/config"
 	"github.com/viru-tech/clickhouse_sinker/input"
 	"github.com/viru-tech/clickhouse_sinker/model"
 	"github.com/viru-tech/clickhouse_sinker/util"
 	"go.uber.org/zap"
-
-	_ "github.com/ClickHouse/clickhouse-go/v2"
 )
 
 type Commit struct {
@@ -148,41 +146,75 @@ func (c *Consumer) updateGroupConfig(g *config.GroupConfig) {
 func (c *Consumer) processFetch() {
 	c.processWg.Add(1)
 	defer c.processWg.Done()
-	recMap := make(model.RecordMap)
-	var bufLength int64
 
-	flushFn := func(traceId, with string) {
-		if len(recMap) == 0 {
-			return
+	flushers := make(map[string]*taskFlusher)
+	topicsToFlushers := make(map[string][]*taskFlusher)
+	c.tasks.Range(func(key, value any) bool {
+		task := value.(*Service)
+		bufSize := uint64(task.taskCfg.BufferSize * len(c.sinker.curCfg.Clickhouse.Hosts) * 4 / 5)
+		flusher := &taskFlusher{
+			threshold: bufSize,
+			inputC:    make(chan messageWithTrace, bufSize),
+			task:      task,
+			recMap:    make(map[int32]*model.BatchRange),
 		}
-		if bufLength > 0 {
-			util.LogTrace(traceId, util.TraceKindProcessEnd, zap.String("with", with), zap.Int64("bufLength", bufLength))
+		if task.taskCfg.FlushInterval != 0 {
+			flusher.duration = time.Duration(task.taskCfg.FlushInterval) * time.Second
+			flusher.ticker = time.NewTicker(flusher.duration)
 		}
-		var wg sync.WaitGroup
-		c.tasks.Range(func(key, value any) bool {
-			// flush to shard, ck
-			task := value.(*Service)
-			task.sharder.Flush(c.ctx, &wg, recMap[task.taskCfg.Topic], traceId)
-			return true
-		})
-		bufLength = 0
 
-		c.mux.Lock()
-		c.numFlying++
-		c.mux.Unlock()
-		c.sinker.commitsCh <- &Commit{group: c.grpConfig.Name, offsets: recMap, wg: &wg, consumer: c}
-		recMap = make(model.RecordMap)
+		flushers[task.taskCfg.Name] = flusher
+		topicsToFlushers[task.taskCfg.Topic] = append(topicsToFlushers[task.taskCfg.Topic], flusher)
+
+		return true
+	})
+
+	wg := sync.WaitGroup{}
+	wg.Add(len(flushers))
+	defer wg.Wait()
+	thresholdsCtx, cancel := context.WithCancel(c.ctx)
+	defer cancel()
+	for task := range flushers {
+		go func() {
+			defer wg.Done()
+			flusher := flushers[task]
+			var traceID string
+			for {
+				select {
+				case msg := <-flusher.inputC:
+					partition := int32(msg.msg.Partition)
+					if flusher.recMap[partition] == nil {
+						flusher.recMap[partition] = &model.BatchRange{
+							Begin: msg.msg.Offset,
+						}
+					}
+
+					traceID = msg.traceID
+					if msg.msg.Offset > flusher.recMap[partition].End {
+						flusher.recMap[partition].End = msg.msg.Offset
+					}
+					flusher.current++
+					err := flusher.task.Put(msg.msg, traceID, func(traceId, with string) {
+						flusher.flushFn(c, traceId, with)
+					})
+					if flusher.current >= flusher.threshold {
+						flusher.flushFn(c, traceID, "bufLength reached")
+					}
+					if err != nil {
+						// decrease the error record
+						util.Rs.Dec(1)
+						util.Logger.Error("putting message in flusher failed", zap.Error(err))
+					}
+				case <-flusher.ticker.C:
+					flusher.flushFn(c, traceID, "ticker.C triggered")
+				case <-thresholdsCtx.Done():
+					flusher.flushFn(c, traceID, "consumer is closed")
+					return
+				}
+			}
+		}()
 	}
 
-	bufThreshold := c.grpConfig.BufferSize * len(c.sinker.curCfg.Clickhouse.Hosts) * 4 / 5
-	if bufThreshold > MaxCountInBuf {
-		bufThreshold = MaxCountInBuf
-	}
-
-	ticker := time.NewTicker(time.Duration(c.grpConfig.FlushInterval) * time.Second)
-	defer ticker.Stop()
-	traceId := "NO_RECORDS_FETCHED"
-	wait := false
 	for {
 		select {
 		case fetches := <-c.fetchesCh:
@@ -190,118 +222,99 @@ func (c *Consumer) processFetch() {
 				continue
 			}
 			fetch := fetches.Fetch.Records()
-			if wait {
-				util.LogTrace(fetches.TraceId,
-					util.TraceKindProcessing,
-					zap.String("message", "bufThreshold not reached, use old traceId"),
-					zap.String("old_trace_id", traceId),
-					zap.Int("records", len(fetch)),
-					zap.Int("bufThreshold", bufThreshold),
-					zap.Int64("totalLength", bufLength))
-			} else {
-				traceId = fetches.TraceId
-				util.LogTrace(traceId, util.TraceKindProcessStart, zap.Int("records", len(fetch)))
-			}
-			items, done := int64(len(fetch)), int64(-1)
-			var concurrency int
-			if concurrency = int(items/1000) + 1; concurrency > MaxParallelism {
-				concurrency = MaxParallelism
-			}
+			traceId := fetches.TraceId
+			util.LogTrace(traceId, util.TraceKindProcessStart, zap.Int("records", len(fetch)))
 
-			var wg sync.WaitGroup
-			var err error
-			wg.Add(concurrency)
-			for i := 0; i < concurrency; i++ {
-				go func() {
-					for {
-						index := atomic.AddInt64(&done, 1)
-						if index >= items || c.state.Load() == util.StateStopped {
-							wg.Done()
-							break
-						}
+			for i := range fetch {
+				if c.state.Load() == util.StateStopped {
+					break
+				}
 
-						rec := fetch[index]
-						msg := &model.InputMessage{
-							Topic:     rec.Topic,
-							Partition: int(rec.Partition),
-							Key:       rec.Key,
-							Value:     rec.Value,
-							Offset:    rec.Offset,
-							Timestamp: &rec.Timestamp,
-						}
-						tablename := ""
-						for _, it := range rec.Headers {
-							if it.Key == "__table_name" {
-								tablename = string(it.Value)
-								break
-							}
-						}
+				rec := fetch[i]
+				msg := &model.InputMessage{
+					Topic:     rec.Topic,
+					Partition: int(rec.Partition),
+					Key:       rec.Key,
+					Value:     rec.Value,
+					Offset:    rec.Offset,
+					Timestamp: &rec.Timestamp,
+				}
 
-						c.tasks.Range(func(key, value any) bool {
-							tsk := value.(*Service)
-							if (tablename != "" && tsk.clickhouse.TableName == tablename) || tsk.taskCfg.Topic == rec.Topic {
-								//bufLength++
-								atomic.AddInt64(&bufLength, 1)
-								if e := tsk.Put(msg, traceId, flushFn); e != nil {
-									atomic.StoreInt64(&done, items)
-									err = e
-									// decrise the error record
-									util.Rs.Dec(1)
-									return false
-								}
-							}
-							return true
-						})
-					}
-				}()
-			}
-			wg.Wait()
+				workers, ok := topicsToFlushers[rec.Topic]
+				if !ok {
+					util.Logger.Warn("topic not found", zap.String("topic", rec.Topic))
+					continue
+				}
 
-			// record the latest offset in order
-			// assume the c.state was reset to stopped when facing error, so that further fetch won't get processed
-			if err == nil {
-				for _, f := range *fetches.Fetch {
-					for i := range f.Topics {
-						ft := &f.Topics[i]
-						if recMap[ft.Topic] == nil {
-							recMap[ft.Topic] = make(map[int32]*model.BatchRange)
-						}
-						for j := range ft.Partitions {
-							fpr := ft.Partitions[j].Records
-							if len(fpr) == 0 {
-								continue
-							}
-							lastOff := fpr[len(fpr)-1].Offset
-							firstOff := fpr[0].Offset
-
-							or, ok := recMap[ft.Topic][ft.Partitions[j].Partition]
-							if !ok {
-								or = &model.BatchRange{Begin: math.MaxInt64, End: -1}
-								recMap[ft.Topic][ft.Partitions[j].Partition] = or
-							}
-							if or.End < lastOff {
-								or.End = lastOff
-							}
-							if or.Begin > firstOff {
-								or.Begin = firstOff
-							}
-						}
+				for _, worker := range workers {
+					select {
+					case worker.inputC <- messageWithTrace{
+						msg:     msg,
+						traceID: traceId,
+					}:
+					case <-c.ctx.Done():
 					}
 				}
 			}
 
-			if bufLength > int64(bufThreshold) {
-				flushFn(traceId, "bufLength reached")
-				ticker.Reset(time.Duration(c.grpConfig.FlushInterval) * time.Second)
-				wait = false
-			} else {
-				wait = true
-			}
-		case <-ticker.C:
-			flushFn(traceId, "ticker.C triggered")
 		case <-c.ctx.Done():
 			util.Logger.Info("stopped processing loop", zap.String("group", c.grpConfig.Name))
+			cancel()
 			return
 		}
 	}
+}
+
+type messageWithTrace struct {
+	traceID string
+	msg     *model.InputMessage
+}
+
+type taskFlusher struct {
+	duration  time.Duration
+	ticker    *time.Ticker
+	threshold uint64
+	current   uint64
+	inputC    chan messageWithTrace
+	task      *Service
+	recMap    map[int32]*model.BatchRange
+}
+
+func (t *taskFlusher) flushFn(consumer *Consumer, traceId, with string) {
+	if len(t.recMap) == 0 {
+		return
+	}
+
+	bufLength := t.current
+	if bufLength > 0 {
+		util.LogTrace(traceId, util.TraceKindProcessEnd,
+			zap.String("with", with),
+			zap.Uint64("bufLength", bufLength),
+		)
+	}
+
+	var wg sync.WaitGroup
+	t.task.sharder.Flush(consumer.ctx, &wg, t.recMap, traceId)
+	if consumer.ctx.Err() != nil {
+		return
+	}
+
+	util.Logger.Warn("flushed",
+		zap.Uint64("count", bufLength),
+		zap.String("trace_id", traceId),
+		zap.String("topic", t.task.taskCfg.Topic),
+	)
+	consumer.mux.Lock()
+	consumer.numFlying++
+	consumer.mux.Unlock()
+	consumer.sinker.commitsCh <- &Commit{group: consumer.grpConfig.Name, offsets: model.RecordMap{
+		t.task.taskCfg.Topic: t.recMap,
+	}, wg: &wg, consumer: consumer}
+	util.Logger.Info("commited offsets",
+		zap.String("topic", t.task.taskCfg.Topic),
+		zap.Any("offsets", t.recMap),
+	)
+	t.recMap = make(map[int32]*model.BatchRange)
+	t.ticker.Reset(t.duration)
+	t.current = 0
 }
